@@ -124,11 +124,24 @@ PHYS_BASE است که مقدار PHYS_BASE به طور دیفالت برابر
 ## به سوی crash
 
 ۶.
-
+info threads (called in process_execute()):
+`* 1    Thread <main>     process_execute (file_name=file_name@entry=0xc0007d50 "do-nothing") at ../../userprog/process.c:36`
+but no address specified here, also not sure if this is really the thread.
+other threads using `dumplist &all_list thread allelem`:
+`pintos-debug: dumplist #1: 0xc0104000 {tid = 2, status = THREAD_BLOCKED, name = "idle", '\000' <repeats 11 times>, stack = 0xc0104f34 "", priority = 0, allelem = {prev = 0xc000e020, next = 0xc0035918 <all_list+8>}, elem = {prev = 0xc0035920 <ready_list>, next = 0xc0035928 <ready_list+8>}, pagedir = 0x0, magic = 3446325067}`
 ۷.
-
+`thread apply all backtrace` 
+`#0  process_execute (file_name=file_name@entry=0xc0007d50 "do-nothing") at ../../userprog/process.c:36ready_list+8>}, pagedir = 0x0, magic = 3446325067}`
+`#1  0xc0020268 in run_task (argv=0xc00357cc <argv+12>) at ../../threads/init.c:288`
+`#2  0xc0020921 in run_actions (argv=0xc00357cc <argv+12>) at ../../threads/init.c:340`
+`#3  main () at ../../threads/init.c:133e@entry=0xc0007d50 "do-nothing") at ../../userprog/process.c:36`
+###
+do you mean run_task? cause there is a definition of actions/functions there and kinda shows how to deal with commands in general. o.w what do u mean?
 ۸.
-
+`break start_process` does the job. then a few `c`s to get there. 
+`pintos-debug: dumplist #0: 0xc000e000 {tid = 1, status = THREAD_BLOCKED, name = "main", '\000' <repeats 11 times>, stack = 0xc000eeac "\001", priority = 31, allelem = {prev = 0xc0035910 <all_list>, next = 0xc0104020}, elem = {prev = 0xc0037314 <temporary+4>, next = 0xc003731c <temporary+12>}, pagedir = 0x0, magic = 3446325067}`
+`pintos-debug: dumplist #1: 0xc0104000 {tid = 2, status = THREAD_BLOCKED, name = "idle", '\000' <repeats 11 times>, stack = 0xc0104f34 "", priority = 0, allelem = {prev = 0xc000e020, next = 0xc010a020}, elem = {prev = 0xc0035920 <ready_list>, next = 0xc0035928 <ready_list+8>}, pagedir = 0x0, magic = 3446325067}`
+`pintos-debug: dumplist #2: 0xc010a000 {tid = 3, status = THREAD_RUNNING, name = "do-nothing\000\000\000\000\000", stack = 0xc010afd4 "", priority = 31, allelem = {prev = 0xc0104020, next = 0xc0035918 <all_list+8>}, elem = {prev = 0xc0035920 <ready_list>, next = 0xc0035928 <ready_list+8>}, pagedir = 0x0, magic = 3446325067}`
 ۹.
 
 ۱۰.
