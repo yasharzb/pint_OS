@@ -1,4 +1,3 @@
-<div dir="rtl">
 # تمرین گروهی ۱/۰ - آشنایی با pintos
 
 ## شماره گروه:
@@ -185,4 +184,3 @@ do you mean run_task? cause there is a definition of actions/functions there and
 ۱۸.
 
 ۱۹.
-</div>
