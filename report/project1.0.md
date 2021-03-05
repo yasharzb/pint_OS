@@ -139,11 +139,6 @@ pintos-debug: dumplist #2: 0xc010a000 {tid = 3, status = THREAD_RUNNING, name = 
 <div dir="ltr">
 
 ```bash
-(gdb) info threads
-  Id   Target Id         Frame
-* 1    Thread <main>     start_process (file_name_=file_name_@entry=0xc0109000) at ../../userprog/process.c:55
-```
-```bash
 (gdb) dumplist &all_list thread allelem
 pintos-debug: dumplist #0: 0xc000e000 {tid = 1, status = THREAD_BLOCKED, name = "main", '\000' <repeats 11 times>, stack = 0xc000eeac "\001", priority = 31, allelem = {prev = 0xc0035910 <all_list>, next = 0xc0104020}, elem = {prev = 0xc0037314 <temporary+4>, next = 0xc003731c <temporary+12>}, pagedir = 0x0, magic = 3446325067}
 pintos-debug: dumplist #1: 0xc0104000 {tid = 2, status = THREAD_BLOCKED, name = "idle", '\000' <repeats 11 times>, stack = 0xc0104f34 "", priority = 0, allelem = {prev = 0xc000e020, next = 0xc010a020}, elem = {prev = 0xc0035920 <ready_list>, next = 0xc0035928 <ready_list+8>}, pagedir = 0x0, magic = 3446325067}
@@ -160,6 +155,7 @@ pintos-debug: dumplist #2: 0xc010a000 {tid = 3, status = THREAD_RUNNING, name = 
 ```
 </div>
 
+همانطور که می‌بینید یک ریسه‌ی جدید با نام `do-nothing` که همان آرگومان `file_name` است ساخته شده است.
 ۱۰.
 
 خروجی اول مربوط به پیش از اجرای تابع `load` است و خروجی دوم مربوط به بعد آن. همانطور که می‌بینید به صورت خاص `eip` و `esp` تغییر داشته‌اند.
@@ -324,6 +320,45 @@ gs             0x23     35
 ## دیباگ
 
 ۱۴.
+همانطور که در بند ۵ دیدیم، مشکل اصلی این است که آرگومان‌ها از جایی بیرون از فضای کاربر خواند می‌شوند و این موجب `page fault` می‌شود. برای رفع این مشکل می‌توانیم `if_`ی که در بند ۱۰ صحبتش بود را طوری تنظیم کنیم که `esp` برای آن به آدرس داخلی‌تری از پشته نگاشت شود که پس از اضافه شدن جمعا ۸ با آدرس باز هم درون فضای کاربر بیفتد.
+در این راستا، تابع `load` در فایل `process.c` را بررسی می‌کنیم. در خط ۳۰۰ این فایل با عبارت زیر مواجه می‌شویم:
+<div dir="ltr">
+
+```c
+  /* Set up stack. */
+  if (!setup_stack(esp))
+    goto done;
+```
+</div>
+ 
+ پس تابع `setup_stack` را بررسی می‌کنیم. در خط ۴۳۴ داریم:
+
+ <div dir="ltr">
+
+ ```c
+     success = install_page(((uint8_t *)(PHYS_BASE)) - PGSIZE, kpage, true);
+    if (success)
+      *esp = PHYS_BASE;
+ ```
+ </div>
+
+اگر `esp` را به اندازه‌ی ۱۶ خانه به عقب بیاوریم، نتیجتا به نیازی به دسترسی به آدرسی بیشتر از `0xc000000` که کران گفته‌ی فضای کاربر است نخواهد داشت. پس خط آخر را بدین سان تغییر می‌دهیم:
+
+<div dir="ltr">
+
+```c
+      *esp = PHYS_BASE - 0x00000010;
+```
+</div>
+
+با انجام این تغییرات و اعمال مجدد دستورهای `make` و `make check` نتیجه‌ی زیر در فایل `do-nothing.result` مطلوب است:
+
+<div dir="ltr">
+
+```bash
+PASS
+```
+</div>
 
 ۱۵.
 
