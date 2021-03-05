@@ -190,7 +190,7 @@ Cannot find bounds of current function
 ```
 </div>
 
-اگر با گام‌های کوچکتر پیش رویم خواهیم داشت
+اگر با گام‌های کوچکتر پیش رویم خواهیم داشت:
 
 <div dir="ltr">
 
@@ -206,6 +206,83 @@ pintos-debug: hit 'c' to continue, or 's' to step to intr_handler
 
 اگر نیک بنگریم، آدرس گفته شده در حقیقت همان `%eip` است که در بند ۱۰ تغییرش را دیدیم و همان آدرس مجازی که موجب crash شد.
 همچنین طبق سطر اول خطا درمی‌یابیم که در userspace هستیم و این خطا همان خطایی است که در ابتدای کار با آن مواجه شدیم.
+
+
+هم چنین اگر به مقادیر رجیسترها هنگام رسیدن به دستور `iret` توجه کنیم
+می‌بینیم که این مقادیر مربوط به کرنل هستند:
+
+<div dir="ltr">
+
+```bash
+(gdb) where
+#0  intr_exit () at ../../threads/intr-stubs.S:64
+(gdb) info registers
+eax            0x0      0
+ecx            0x0      0
+edx            0x0      0
+ebx            0x0      0
+esp            0xc010af94       0xc010af94
+ebp            0x0      0x0
+esi            0x0      0
+edi            0x0      0
+eip            0xc0021b19       0xc0021b19 <intr_exit+10>
+eflags         0x292    [ AF SF IF ] 
+cs             0x8      8
+ss             0x10     16
+ds             0x23     35
+es             0x23     35
+fs             0x23     35
+gs             0x23     35
+```
+</div>
+پس از جلو رفتن به اندازه‌ی یک استپ (si) خواهیم دید که این مقادیر اکنون برابر مقادیری که در if_ داشتیم هستند و وارد userspace شده‌ایم.
+
+
+<div dir="ltr">
+
+```bash
+(gdb) where
+#0  0x08048754 in ?? ()
+(gdb) info registers 
+eax            0x0      0
+ecx            0x0      0
+edx            0x0      0
+ebx            0x0      0
+esp            0xc0000000       0xc0000000
+ebp            0x0      0x0
+esi            0x0      0
+edi            0x0      0
+eip            0x8048754        0x8048754
+eflags         0x202    [ IF ]
+cs             0x1b     27
+ss             0x23     35
+ds             0x23     35
+es             0x23     35
+fs             0x23     35
+gs             0x23     35
+(gdb) 
+```
+</div>
+
+
+در کد `start_process` گفته شده:
+<div dir="ltr">
+
+> Start the user process by simulating a return from an interrupt, implemented by intr_exit (in threads/intr-stubs.S).  Because intr_exit takes all of its arguments on the stack in the form of a `struct intr_frame', we just point the stack pointer (%esp) to our stack frameand jump to it. 
+</div>
+
+هم چنین در داکیومنت دستور `iret` داریم:
+
+<div dir="ltr">
+
+> Returns program control from an exception or interrupt handler to a program or procedure that was interrupted by an exception, an external interrupt, or a software-generated interrupt
+</div>
+
+حال چون در ابتدای دستور `asm volatile` فریم مربوط به برنامه‌ی کاربر را در استک می‌ریزیم پس تابع `iter` 
+به userspace باز می‌گردد
+و برنامه‌ی کاربر شروع به اجرا می‌کند.
+
+
 ۱۲.
 <div dir="ltr">
 
@@ -230,8 +307,19 @@ gs             0x23     35
 ```
 </div>
 
-مقادیر `esp` و `eip` همان مقادیر `if_` هستند
+مقادیر `esp` و `eip` همان مقادیر `if_` هستند.
+
 ۱۳.
+
+<div dir="ltr">
+
+```bash
+(gdb) bt
+#0  0xc0021b95 in intr0e_stub ()
+(gdb) btpagefault
+#0  _start (argc=<unavailable>, argv=<unavailable>) at ../../lib/user/entry.c:9
+```
+</div>
 
 ## دیباگ
 
