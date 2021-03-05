@@ -7,7 +7,7 @@
 
 یاشار ظروفچی <yasharzb@chmail.ir>
 
-صبا هاشمی <example@example.com>
+صبا هاشمی <sba.hashemii@gmail.com>
 
 امیرمحمد قاسمی <example@example.com>
 
@@ -86,20 +86,29 @@ assembly code:
 
 ۶.
 
-با دستور `dumplist &all_list  thread allelem`اطلاعات زیر را می‌بینیم:
+با دستور
+`dumplist &all_list  thread allelem`
+اطلاعات زیر را می‌بینیم:
+
 <div dir="ltr">
 
 ```bash
 pintos-debug: dumplist #0: 0xc000e000 {tid = 1, status = THREAD_RUNNING, name = "main", '\000' <repeats 11 times>, stack = 0xc000edec <incomplete sequence \357>, priority = 31, allelem = {prev = 0xc0035910 <all_list>, next = 0xc0104020}, elem = {prev = 0xc0035920 <ready_list>, next = 0xc0035928 <ready_list+8>}, pagedir = 0x0, magic = 3446325067}
 ```
+
 </div>
 
 از اطلاعات بالا متوجه می‌شویم نام ریسه `main` و آدرس آن  `0xc000e000` است.
 ریسه‌های دیگر در ادامه دیده می‌شوند:
 
+<div dir="ltr">
+
+
 ```bash
 pintos-debug: dumplist #1: 0xc0104000 {tid = 2, status = THREAD_BLOCKED, name = "idle", '\000' <repeats 11 times>, stack = 0xc0104f34 "", priority = 0, allelem = {prev = 0xc000e020, next = 0xc0035918 <all_list+8>}, elem = {prev = 0xc0035920 <ready_list>, next = 0xc0035928 <ready_list+8>}, pagedir = 0x0, magic = 3446325067}
 ```
+</div>
+
 
 ۷.
 
@@ -135,30 +144,28 @@ pintos-debug: dumplist #2: 0xc010a000 {tid = 3, status = THREAD_RUNNING, name = 
 ```
 </div>
 
-۹. 
-<div dir="ltr">
+۹.
 
-```bash
-(gdb) dumplist &all_list thread allelem
-pintos-debug: dumplist #0: 0xc000e000 {tid = 1, status = THREAD_BLOCKED, name = "main", '\000' <repeats 11 times>, stack = 0xc000eeac "\001", priority = 31, allelem = {prev = 0xc0035910 <all_list>, next = 0xc0104020}, elem = {prev = 0xc0037314 <temporary+4>, next = 0xc003731c <temporary+12>}, pagedir = 0x0, magic = 3446325067}
-pintos-debug: dumplist #1: 0xc0104000 {tid = 2, status = THREAD_BLOCKED, name = "idle", '\000' <repeats 11 times>, stack = 0xc0104f34 "", priority = 0, allelem = {prev = 0xc000e020, next = 0xc010a020}, elem = {prev = 0xc0035920 <ready_list>, next = 0xc0035928 <ready_list+8>}, pagedir = 0x0, magic = 3446325067}
-pintos-debug: dumplist #2: 0xc010a000 {tid = 3, status = THREAD_RUNNING, name = "do-nothing\000\000\000\000\000", stack = 0xc010afd4 "", priority = 31, allelem = {prev = 0xc0104020, next = 0xc0035918 <all_list+8>}, elem = {prev = 0xc0035920 <ready_list>, next = 0xc0035928 <ready_list+8>}, pagedir = 0x0, magic = 3446325067}
-```
-</div>
-
-البته در کد در تابع `process_execute` به صورت زیر ساخته می‌شود
+این ترد در ترد `main` که در پاسخ سوال قسمت قبل قابل مشاهده است ساخته می‌شود.
+کد مربوط به ساخته شدن این ترد در تابع
+`process_execute`
+(خط ۴۵)
+وجود دارد و به صورت زیر است:
 
 <div dir="ltr">
 
 ```c
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
 ```
+
 </div>
 
-همانطور که می‌بینید یک ریسه‌ی جدید با نام `do-nothing` که همان آرگومان `file_name` است ساخته شده است.
+همانطور که در خروجی `dumplist`
+در پاسخ قسمت قبل می‌بینید یک ریسه‌ی جدید با نام `do-nothing` که همان آرگومان `file_name` است ساخته شده است.
+
 ۱۰.
 
-خروجی اول مربوط به پیش از اجرای تابع `load` است و خروجی دوم مربوط به بعد آن. همانطور که می‌بینید به صورت خاص `eip` و `esp` تغییر داشته‌اند.
+خروجی اول مربوط به پیش از اجرای تابع `load` است و خروجی دوم مربوط به بعد آن. همانطور که می‌بینید به صورت خاص `eip` و `esp`که stack pointer و instruction pointer هستند، تغییر داشته‌اند.
 
 <div dir="ltr">
 
@@ -170,10 +177,10 @@ pintos-debug: dumplist #2: 0xc010a000 {tid = 3, status = THREAD_RUNNING, name = 
  0x0, frame_pointer = 0x0, eip = 0x8048754, cs = 0x1b, eflags = 0x202, esp = 0xc0000000, ss = 0x23}
  ```
 
-
 </div>
 
 ۱۱.
+
 در این قسمت وقتی به `iret` رسیدیم متوجه می‌شیم که هنگام جلو رفتن اینگونه برخورد می‌کند:
 
 <div dir="ltr">
@@ -198,11 +205,11 @@ pintos-debug: a page fault exception occurred in user mode
 pintos-debug: hit 'c' to continue, or 's' to step to intr_handler
 0xc0021b95 in intr0e_stub ()
 ```
+
 </div>
 
 اگر نیک بنگریم، آدرس گفته شده در حقیقت همان `%eip` است که در بند ۱۰ تغییرش را دیدیم و همان آدرس مجازی که موجب crash شد.
 همچنین طبق سطر اول خطا درمی‌یابیم که در userspace هستیم و این خطا همان خطایی است که در ابتدای کار با آن مواجه شدیم.
-
 
 هم چنین اگر به مقادیر رجیسترها هنگام رسیدن به دستور `iret` توجه کنیم
 می‌بینیم که این مقادیر مربوط به کرنل هستند:
@@ -230,9 +237,10 @@ es             0x23     35
 fs             0x23     35
 gs             0x23     35
 ```
-</div>
-پس از جلو رفتن به اندازه‌ی یک استپ (si) خواهیم دید که این مقادیر اکنون برابر مقادیری که در if_ داشتیم هستند و وارد userspace شده‌ایم.
 
+</div>
+
+پس از جلو رفتن به اندازه‌ی یک استپ (si) خواهیم دید که این مقادیر اکنون برابر مقادیری که در if_ داشتیم هستند و وارد userspace شده‌ایم:
 
 <div dir="ltr">
 
@@ -258,10 +266,11 @@ fs             0x23     35
 gs             0x23     35
 (gdb) 
 ```
+
 </div>
 
 
-در کد `start_process` گفته شده:
+در کامنت‌های کد `start_process` قبل از دستور `asm volatile` گفته شده:
 <div dir="ltr">
 
 > Start the user process by simulating a return from an interrupt, implemented by intr_exit (in threads/intr-stubs.S).  Because intr_exit takes all of its arguments on the stack in the form of a `struct intr_frame', we just point the stack pointer (%esp) to our stack frameand jump to it. 
@@ -320,8 +329,10 @@ gs             0x23     35
 ## دیباگ
 
 ۱۴.
+
 همانطور که در بند ۵ دیدیم، مشکل اصلی این است که آرگومان‌ها از جایی بیرون از فضای کاربر خواند می‌شوند و این موجب `page fault` می‌شود. برای رفع این مشکل می‌توانیم `if_`ی که در بند ۱۰ صحبتش بود را طوری تنظیم کنیم که `esp` برای آن به آدرس داخلی‌تری از پشته نگاشت شود که پس از اضافه شدن جمعا ۸ با آدرس باز هم درون فضای کاربر بیفتد.
 در این راستا، تابع `load` در فایل `process.c` را بررسی می‌کنیم. در خط ۳۰۰ این فایل با عبارت زیر مواجه می‌شویم:
+
 <div dir="ltr">
 
 ```c
@@ -329,6 +340,7 @@ gs             0x23     35
   if (!setup_stack(esp))
     goto done;
 ```
+
 </div>
  
  پس تابع `setup_stack` را بررسی می‌کنیم. در خط ۴۳۴ داریم:
@@ -340,6 +352,7 @@ gs             0x23     35
     if (success)
       *esp = PHYS_BASE;
  ```
+
  </div>
 
 اگر `esp` را به اندازه‌ی ۱۶ خانه به عقب بیاوریم، نتیجتا به نیازی به دسترسی به آدرسی بیشتر از `0xc000000` که کران گفته‌ی فضای کاربر است نخواهد داشت. پس خط آخر را بدین سان تغییر می‌دهیم:
@@ -361,22 +374,26 @@ PASS
 </div>
 
 ۱۵.
-طبق do-stack-align.ck باید مقدار ۱۲ را خروجی بگیریم. 
+
+طبق do-stack-align.ck باید مقدار ۱۲ را خروجی بگیریم.
+
 <div dir="ltr">
-do-stack-align: exit(12)
+do-stack-align: exit(12)‍
 </div>
-اما ما خروجی ۰ میگرفتیم. پس کافی است کاری کنیم که باقیمانده esp% به ۱۶ برابر ۱۲ شود. پس تغییر زیر را اعمال می‌کنیم.
+
+اما ما خروجی ۰ میگرفتیم. پس کافی است کاری کنیم که باقیمانده `esp%` به ۱۶ برابر ۱۲ شود. پس تغییر زیر را اعمال می‌کنیم.
 
 <div dir="ltr">
 
 ```c
       *esp = PHYS_BASE - 0x00000014;
 ```
+
 </div>
 
-
 ۱۶.
-مقدار esp% برابر است با 0xfffd40c و دو مقدار روبه روی آن، دو کلمه‌ی بالای استک است.
+
+مقدار `esp%` برابر است با `0xfffd40c` و دو مقدار روبه‌روی آن، دو کلمه‌ی بالای استک است.
  <div dir="ltr">
 
 ```bash
@@ -386,7 +403,7 @@ do-stack-align: exit(12)
 
  </div>
 
- 
+
 ۱۷.
 
 همان مقادیری که در قسمت قبل گرفتیم؟
@@ -416,13 +433,11 @@ Breakpoint 2, sema_down (sema=sema@entry=0xc0036efc <descs+316>) at ../../thread
 
 </div>
 
-بر روی تابع sema_down یک breakpoint میگذاریم. همانطور که معلوم است اجرای برنامه ابتدا به load در start_process میرسد و سپس به file_close  و indoe_close و free و lock_acquire و درانتها به sema_down میرسد.
-
+بر روی تابع `sema_down` یک breakpoint می‌گذاریم. همانطور که معلوم است اجرای برنامه ابتدا به `load` در `start_process` می‌رسد و سپس به `file_close`  و `indoe_close` و `free` و `lock_acquire` و درانتها به `sema_down` می‌رسد.
 
 ۱۹.
 
 <div dir="ltr">
-
 
 ```bash
 (gdb) dumplist &all_list thread allelem 
@@ -436,7 +451,6 @@ pintos-debug: dumplist #2: 0xc010a000 {tid = 3, status = THREAD_RUNNING, name = 
 
 </div>
 
-در این حالت ۳ ریسه داریم که ریسه do-nothing ریسه ای است که این تابع را دارد اجرا میکند. 
-
+در این حالت ۳ ریسه داریم که ریسه do-nothing ریسه‌ای است که این تابع را دارد اجرا می‌کند.
 
 </div>
