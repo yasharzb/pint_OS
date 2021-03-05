@@ -150,6 +150,16 @@ pintos-debug: dumplist #1: 0xc0104000 {tid = 2, status = THREAD_BLOCKED, name = 
 pintos-debug: dumplist #2: 0xc010a000 {tid = 3, status = THREAD_RUNNING, name = "do-nothing\000\000\000\000\000", stack = 0xc010afd4 "", priority = 31, allelem = {prev = 0xc0104020, next = 0xc0035918 <all_list+8>}, elem = {prev = 0xc0035920 <ready_list>, next = 0xc0035928 <ready_list+8>}, pagedir = 0x0, magic = 3446325067}
 ```
 </div>
+
+البته در کد در تابع `process_execute` به صورت زیر ساخته می‌شود
+
+<div dir="ltr">
+
+```c
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+```
+</div>
+
 ۱۰.
 
 خروجی اول مربوط به پیش از اجرای تابع `load` است و خروجی دوم مربوط به بعد آن. همانطور که می‌بینید به صورت خاص `eip` و `esp` تغییر داشته‌اند.
@@ -168,9 +178,59 @@ pintos-debug: dumplist #2: 0xc010a000 {tid = 3, status = THREAD_RUNNING, name = 
 </div>
 
 ۱۱.
+در این قسمت وقتی به `iret` رسیدیم متوجه می‌شیم که هنگام جلو رفتن اینگونه برخورد می‌کند:
 
+<div dir="ltr">
+
+```bash
+(gdb) n
+0x08048754 in ?? ()
+(gdb) n
+Cannot find bounds of current function
+```
+</div>
+
+اگر با گام‌های کوچکتر پیش رویم خواهیم داشت
+
+<div dir="ltr">
+
+```bash
+(gdb) ni
+0x08048757 in ?? ()
+(gdb) ni
+pintos-debug: a page fault exception occurred in user mode
+pintos-debug: hit 'c' to continue, or 's' to step to intr_handler
+0xc0021b95 in intr0e_stub ()
+```
+</div>
+
+اگر نیک بنگریم، آدرس گفته شده در حقیقت همان `%eip` است که در بند ۱۰ تغییرش را دیدیم و همان آدرس مجازی که موجب crash شد.
+همچنین طبق سطر اول خطا درمی‌یابیم که در userspace هستیم و این خطا همان خطایی است که در ابتدای کار با آن مواجه شدیم.
 ۱۲.
+<div dir="ltr">
 
+```bash
+(gdb) info registers 
+eax            0x0      0
+ecx            0x0      0
+edx            0x0      0
+ebx            0x0      0
+esp            0xc0000000       0xc0000000
+ebp            0x0      0x0
+esi            0x0      0
+edi            0x0      0
+eip            0x8048754        0x8048754
+eflags         0x202    [ IF ]
+cs             0x1b     27
+ss             0x23     35
+ds             0x23     35
+es             0x23     35
+fs             0x23     35
+gs             0x23     35
+```
+</div>
+
+مقادیر `esp` و `eip` همان مقادیر `if_` هستند
 ۱۳.
 
 ## دیباگ
