@@ -406,7 +406,8 @@ do-stack-align: exit(12)‍
 
 ۱۷.
 
-همان مقادیری که در قسمت قبل گرفتیم؟
+`arg[0]` برابر ۱ و `arg[1]` برابر ۱۶۲ (0xa2) است که
+همان مقادیری‌ست که در قسمت قبل گرفتیم.
 
 ۱۸.
 
@@ -435,6 +436,18 @@ Breakpoint 2, sema_down (sema=sema@entry=0xc0036efc <descs+316>) at ../../thread
 
 بر روی تابع `sema_down` یک breakpoint می‌گذاریم. همانطور که معلوم است اجرای برنامه ابتدا به `load` در `start_process` می‌رسد و سپس به `file_close`  و `indoe_close` و `free` و `lock_acquire` و درانتها به `sema_down` می‌رسد.
 
+
+
+
+TODO suggestion:
+
+`sema_down(&temporary)` در تابع `process_wait` در فایل process.c قرار دارد.
+
+کاربرد این
+semaphore
+این است که پس از اتمام اجرای ترد، ترد دیگری که منتظر اتمام اجرای آن است (و در `process_wait` منتظر است) متوجه شود و از حالت blocked خارج شود.
+
+
 ۱۹.
 
 <div dir="ltr">
@@ -452,5 +465,32 @@ pintos-debug: dumplist #2: 0xc010a000 {tid = 3, status = THREAD_RUNNING, name = 
 </div>
 
 در این حالت ۳ ریسه داریم که ریسه do-nothing ریسه‌ای است که این تابع را دارد اجرا می‌کند.
+
+TODO suggestion:
+
+ترد main این تابع را اجرا می‌کند که در آدرس `0xc000e000` قرار دارد.
+در این حالت می‌بینیم که ترد main در استیت THREAD_RUNNING است و ترد do-nothing در استیت THREAD_READY که یعنی در حال حاضر اجرا نمی‌شود ولی آماده‌ی اجرا است و در هنگام اجرای بعدی scheduler می‌تواند اجرا شود.
+<div dir="ltr">
+
+```bash
+(gdb) b process.c:84
+Breakpoint 1 at 0xc002aacc: file ../../userprog/process.c, line 84.
+(gdb) c
+Continuing.
+
+Breakpoint 1, process_wait (child_tid=3) at ../../userprog/process.c:93
+(gdb) dumplist &all_list thread allelem
+
+pintos-debug: dumplist #0: 0xc000e000 {tid = 1, status = THREAD_RUNNING, name = "main", '\000' <repeats 11 times>, stack = 0xc000edec "\375\003", priority = 31, allelem = {prev =
+ 0xc0035910 <all_list>, next = 0xc0104020}, elem = {prev = 0xc0035920 <ready_list>, next = 0xc0035928 <ready_list+8>}, pagedir = 0x0, magic = 3446325067}
+
+pintos-debug: dumplist #1: 0xc0104000 {tid = 2, status = THREAD_BLOCKED, name = "idle", '\000' <repeats 11 times>, stack = 0xc0104f34 "", priority = 0, allelem = {prev = 0xc000e0
+20, next = 0xc010a020}, elem = {prev = 0xc0035920 <ready_list>, next = 0xc0035928 <ready_list+8>}, pagedir = 0x0, magic = 3446325067}
+p
+intos-debug: dumplist #2: 0xc010a000 {tid = 3, status = THREAD_READY, name = "do-nothing\000\000\000\000\000", stack = 0xc010afd4 "", priority = 31, allelem = {prev = 0xc0104020
+, next = 0xc0035918 <all_list+8>}, elem = {prev = 0xc0035920 <ready_list>, next = 0xc0035928 <ready_list+8>}, pagedir = 0x0, magic = 3446325067}
+```
+
+</div>
 
 </div>
