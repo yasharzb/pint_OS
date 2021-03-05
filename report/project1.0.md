@@ -361,12 +361,82 @@ PASS
 </div>
 
 ۱۵.
+طبق do-stack-align.ck باید مقدار ۱۲ را خروجی بگیریم. 
+<div dir="ltr">
+do-stack-align: exit(12)
+</div>
+اما ما خروجی ۰ میگرفتیم. پس کافی است کاری کنیم که باقیمانده esp% به ۱۶ برابر ۱۲ شود. پس تغییر زیر را اعمال می‌کنیم.
+
+<div dir="ltr">
+
+```c
+      *esp = PHYS_BASE - 0x00000014;
+```
+</div>
+
 
 ۱۶.
+مقدار esp% برابر است با 0xfffd40c و دو مقدار روبه روی آن، دو کلمه‌ی بالای استک است.
+ <div dir="ltr">
 
+```bash
+(gdb) x/2xw $esp
+0xffffd40c:     0x00000001      0x000000a2
+```
+
+ </div>
+
+ 
 ۱۷.
+
+همان مقادیری که در قسمت قبل گرفتیم؟
 
 ۱۸.
 
+<div dir="ltr">
+
+```bash
+(gdb) break sema_down
+Breakpoint 2 at 0xc00226fc: file ../../threads/synch.c, line 62.
+(gdb) c
+Continuing.
+
+Breakpoint 2, sema_down (sema=sema@entry=0xc0036efc <descs+316>) at ../../threads/synch.c:62
+(gdb) backtrace 
+#0  sema_down (sema=sema@entry=0xc0036efc <descs+316>) at ../../threads/synch.c:62
+#1  0xc0022a18 in lock_acquire (lock=lock@entry=0xc0036ef8 <descs+312>) at ../../threads/synch.c:199
+#2  0xc002388f in free (p=<optimized out>, p@entry=0xc010840c) at ../../threads/malloc.c:236
+#3  0xc002cde7 in inode_close (inode=0xc010840c) at ../../filesys/inode.c:184
+#4  0xc002c54f in file_close (file=file@entry=0xc010705c) at ../../filesys/file.c:51
+#5  0xc002afe1 in load (esp=0xc010afa0, eip=0xc010af94, file_name=<optimized out>) at ../../userprog/process.c:320
+#6  start_process (file_name_=<optimized out>, file_name_@entry=0xc0109000) at ../../userprog/process.c:65
+#7  0xc002132f in kernel_thread (function=0xc002ab3c <start_process>, aux=0xc0109000) at ../../threads/thread.c:424
+#8  0x00000000 in ?? ()
+```
+
+</div>
+
+بر روی تابع sema_down یک breakpoint میگذاریم. همانطور که معلوم است اجرای برنامه ابتدا به load در start_process میرسد و سپس به file_close  و indoe_close و free و lock_acquire و درانتها به sema_down میرسد.
+
+
 ۱۹.
+
+<div dir="ltr">
+
+
+```bash
+(gdb) dumplist &all_list thread allelem 
+
+pintos-debug: dumplist #0: 0xc000e000 {tid = 1, status = THREAD_BLOCKED, name = "main", '\000' <repeats 11 times>, stack = 0xc000eeac "\001", priority = 31, allelem = {prev = 0xc0035910 <all_list>, next= 0xc0104020}, elem = {prev = 0xc0037314 <temporary+4>, next = 0xc003731c <temporary+12>}, pagedir = 0x0, magic = 3446325067}
+
+pintos-debug: dumplist #1: 0xc0104000 {tid = 2, status = THREAD_BLOCKED, name = "idle", '\000' <repeats 11 times>, stack = 0xc0104f34 "", priority = 0, allelem = {prev = 0xc000e020, next = 0xc010a020}, elem = {prev = 0xc0035920 <ready_list>, next = 0xc0035928 <ready_list+8>}, pagedir = 0x0, magic = 3446325067}
+
+pintos-debug: dumplist #2: 0xc010a000 {tid = 3, status = THREAD_RUNNING, name = "do-nothing\000\000\000\000\000", stack = 0xc010ad04 "8\255\020\300\365Q\002\300\210p\003\300\001", priority = 31, allelem= {prev = 0xc0104020, next = 0xc0035918 <all_list+8>}, elem = {prev = 0xc0035920 <ready_list>, next = 0xc0035928 <ready_list+8>}, pagedir = 0xc010b000, magic = 3446325067}
+```
+
+</div>
+
+در این حالت ۳ ریسه داریم که ریسه do-nothing ریسه ای است که این تابع را دارد اجرا میکند. 
+
+
 </div>
