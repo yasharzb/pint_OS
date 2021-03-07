@@ -1,4 +1,13 @@
 # Accessing user memory
+<div dir="rtl">
+
++ توضیح دهید خواندن و نوشتن داده‌های کاربر از داخل هسته، در کد شما چگونه انجام شده است.
+
++ به چه دلیل روش دسترسی به حافظه سطح کاربر از داخل هسته را این‌گونه پیاده‌سازی کرده‌اید؟
+
+</div>
+
+#
 
 ## Page Directory
 
@@ -44,3 +53,24 @@ And one last thing is this (from doc):
 > a 4-byte memory region (like a 32-bit integer) may consist of 2 bytes of valid memory and 2 bytes of invalid memory, if the memory lies on a page boundary
 
 I was thinking about checking the last address too but we don't know the size beforehand cause our pointers are mostly strings and they are null terminated. So Any idea?
+
+
+# Exec and wait
+<div dir="rtl">
+
++ پیاده‌سازی فراخوانی سیستمی wait را توضیح دهید و بگویید چگونه با پایان یافتن پردازه در ارتباط است.
+
++ فراخوانی سیستمی exec نباید قبل از پایان بارگذاری فایل اجرایی برگردد، چون در صورتی که بارگذاری فایل اجرایی با خطا مواجه شود باید -۱ برگرداند. کد شما چگونه از این موضوع اطمینان حاصل می‌کند؟ چگونه وضعیت موفقیت یا شکست در اجرا به ریسه‌ای که exec را فراخوانی کرده اطلاع داده می‌شود؟
+
++ پردازه‌ی والد P و پردازه‌ی فرزند C را درنظر بگیرید. هنگامی که P فراخوانی wait(C) را اجرا می‌کند و C هنوز خارج نشده است، توضیح دهید که چگونه همگام‌سازی مناسب را برای جلوگیری از ایجاد شرایط مسابقه (race condition) پیاده‌سازی کرده‌اید. وقتی که C از قبل خارج شده باشد چطور؟ در هر حالت چگونه از آزاد شدن تمامی منابع اطمینان حاصل می‌کنید؟ اگر P بدون منتظر ماندن، قبل از C خارج شود چطور؟ اگر بدون منتظر ماندن بعد از C خارج شود چطور؟ آیا حالت‌های خاصی وجود دارد؟
+</div>
+
+#
+
+First have a look at these system calls explanation in document (Berekly project1 doc page 17-18)
+
+
+We need a way to know if the process called `wait(pid)` is the parent of pid. I think we can add a `parent_tid` (or pid!) in thread struct in *thread.h* then in wait we can check if `parent_tid` of child process is same as currect thread. Also we need to store a list of all threads since we need return value of child thread in `wait` syscall even if it has already exited. Currectly there is a `all_list` in *thread.c* but it remove threads when they exit. 
+
+
+For implementing exec can't we simply use `process_execute`?
