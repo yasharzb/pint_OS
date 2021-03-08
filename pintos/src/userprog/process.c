@@ -22,7 +22,6 @@
 static struct semaphore temporary;
 static thread_func start_process NO_RETURN;
 static bool load(const char *cmdline, void (**eip)(void), void **esp);
-char *read_command_line(const char *file_name, char *save);
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -229,14 +228,7 @@ bool load(const char *file_name, void (**eip)(void), void **esp)
     palloc_get_page,
     strtok_r
   */
-  // char *save;
-  // save = palloc_get_page()
-  /* Set up stack. */
-  if (!setup_stack(esp))
-    goto done;
 
-  char *args;
-  char *cmd = read_command_line(file_name, args);
   file = filesys_open(cmd);
   if (file == NULL)
   {
@@ -308,6 +300,10 @@ bool load(const char *file_name, void (**eip)(void), void **esp)
       break;
     }
   }
+
+  /* Set up stack. */
+  if (!setup_stack(esp))
+    goto done;
 
   /* Start address. */
   *eip = (void (*)(void))ehdr.e_entry;
@@ -465,15 +461,4 @@ install_page(void *upage, void *kpage, bool writable)
   /* Verify that there's not already a page at that virtual
      address, then map our page there. */
   return (pagedir_get_page(t->pagedir, upage) == NULL && pagedir_set_page(t->pagedir, upage, kpage, writable));
-}
-
-char *read_command_line(const char *file_name, char *save)
-{
-  save = palloc_get_page(PAL_USER | PAL_ZERO);
-  char *token = strtok_r(file_name, " ", &save);
-  // while (token != NULL)
-  // {
-  //   token = __strtok_r(NULL, " ", &save);
-  // }
-  return token;
 }
