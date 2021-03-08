@@ -1,7 +1,0 @@
-{
-    "files.associations": {
-        "*.tcc": "c",
-        "syscall.h": "c",
-        "syscall-nr.h": "c"
-    }
-}
