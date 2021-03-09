@@ -8,11 +8,11 @@
 
 یاشار ظروفچی <yasharzb@chmail.ir>
 
-صبا هاشمی <example@example.com> 
+صبا هاشمی <sba.hashemii@gmail.com> 
 
 امیرمحمد قاسمی <example@example.com> 
 
-مهرانه نجفی <example@example.com> 
+مهرانه نجفی <najafi.mehraneh@gmail.com> 
 
 مقدمات
 ----------
