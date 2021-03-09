@@ -11,7 +11,7 @@
 
 امیرمحمد قاسمی <ghasemiamirmohammad@yahoo.com>
 
-مهرانه نجفی <example@example.com>
+مهرانه نجفی <najafi.mehraneh@gmail.com>
 
 ## مقدمات
 
