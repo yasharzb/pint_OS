@@ -10,7 +10,7 @@
 
 صبا هاشمی <sba.hashemii@gmail.com> 
 
-امیرمحمد قاسمی <example@example.com> 
+امیرمحمد قاسمی <ghasemiamirmohammad@yahoo.com> 
 
 مهرانه نجفی <najafi.mehraneh@gmail.com> 
 
