@@ -407,7 +407,7 @@ do-stack-align: exit(12)‍
 ۱۷.
 
 `arg[0]` برابر ۱ و `arg[1]` برابر ۱۶۲ (0xa2) است که
-همان مقادیری‌ست که در قسمت قبل گرفتیم.
+همان مقادیری‌ست که در قسمت قبل گرفتیم. در واقع ۱۶۲ مقدار خروجی برنامه , ۱ عدد سیستم کال exit است.
 
 ۱۸.
 
@@ -437,10 +437,6 @@ Breakpoint 2, sema_down (sema=sema@entry=0xc0036efc <descs+316>) at ../../thread
 بر روی تابع `sema_down` یک breakpoint می‌گذاریم. همانطور که معلوم است اجرای برنامه ابتدا به `load` در `start_process` می‌رسد و سپس به `file_close`  و `indoe_close` و `free` و `lock_acquire` و درانتها به `sema_down` می‌رسد.
 
 
-
-
-TODO suggestion:
-
 `sema_down(&temporary)` در تابع `process_wait` در فایل process.c قرار دارد.
 
 کاربرد این
@@ -465,9 +461,6 @@ pintos-debug: dumplist #2: 0xc010a000 {tid = 3, status = THREAD_RUNNING, name = 
 </div>
 
 در این حالت ۳ ریسه داریم که ریسه do-nothing ریسه‌ای است که این تابع را دارد اجرا می‌کند.
-
-TODO suggestion:
-
 ترد main این تابع را اجرا می‌کند که در آدرس `0xc000e000` قرار دارد.
 در این حالت می‌بینیم که ترد main در استیت THREAD_RUNNING است و ترد do-nothing در استیت THREAD_READY که یعنی در حال حاضر اجرا نمی‌شود ولی آماده‌ی اجرا است و در هنگام اجرای بعدی scheduler می‌تواند اجرا شود.
 <div dir="ltr">
