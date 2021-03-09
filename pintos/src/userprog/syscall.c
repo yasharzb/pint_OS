@@ -32,4 +32,6 @@ syscall_handler (struct intr_frame *f UNUSED)
       printf ("%s: exit(%d)\n", &thread_current ()->name, args[1]);
       thread_exit ();
     }
+
+  //TODO Add syscalls
 }
