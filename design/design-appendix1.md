@@ -74,3 +74,17 @@ We need a way to know if the process called `wait(pid)` is the parent of pid. I 
 
 
 For implementing exec can't we simply use `process_execute`?
+
+Is parent going to stop and wait for the child when it calls  wait on  it(The answer is probably yes)? If yes, then why would we have a problem with child having no parents to report to(we might terminate parent in between maybe? but when we're waiting for child, we are in the scope of child, so termination should work on child :-? )? If parent calls wait on terminated child, don't we still have records of it in parent process? like the return value etc.
+
+# 
+<div dir="rtl>
+
++ طراحی شما برای توصیف‌کننده‌های فایل چه نقاط قوت و ضعفی دارد؟
+
+</div>
+
+#
+
+We need to keep record of file descriptors opened in a process, so when the process is terminated or has exited somehow, we should also close all of its file descriptors. Number of file descriptor each process can garantee should be checked too with OPEN_MAX.
+I don't know what it means to "Tarahi file descriptor" yet. :D
