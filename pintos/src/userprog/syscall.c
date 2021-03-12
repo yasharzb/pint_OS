@@ -4,6 +4,8 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
+#include "userprog/process.h"
+
 static void syscall_handler (struct intr_frame *);
 
 void
@@ -34,4 +36,11 @@ syscall_handler (struct intr_frame *f UNUSED)
     }
 
   //TODO Add syscalls
+
+  if (args[0] == SYS_EXEC) {
+    printf("we're executing exec %d\n", SYS_EXEC);
+    printf("and args[1]: %s\n", args[1]);
+    process_execute(args[1]);
+    // khob in ja chickar konim hala :D ?
+  }
 }
