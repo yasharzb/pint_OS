@@ -507,14 +507,13 @@ bool alternative_setup_stack(int argc, char **argv, void **esp) {
   kpage = palloc_get_page(PAL_USER | PAL_ZERO);
   if (kpage == NULL)
     return false;
-
+  int C = 0;
   bool success = false;
   success = install_page(((uint8_t *)PHYS_BASE) - PGSIZE, kpage, true);
   if (success)
-    *esp = PHYS_BASE - 0x0000044;
+    *esp = PHYS_BASE - C - 4;
   else
     return false;
-  int C = 64;
 
   uint32_t totalArgsLength = 0;
   for (int i = 0; i < argc; i++) {
@@ -526,36 +525,25 @@ bool alternative_setup_stack(int argc, char **argv, void **esp) {
       + align_count // for aligment of argv chars
       + 4 * (argc + 1) // argv[i] pointer for i in [0, argc]
       + 4 * 2; // argc and argv pointer
-
-
   uint32_t base = PGSIZE - C - totalStackLength;
   *esp -= totalStackLength;
   uint8_t *stack_pointer = kpage;
-  // uint8_t *aligned_stack_pointer = stack_pointer + (16 - (((int) stack_pointer) % 16)) % 16;
-
   uint8_t *aligned_stack_pointer = stack_pointer + base;
-  // for (int i = 0; i < PGSIZE; i++)
-    // kpage[i] = 0xaa;
-
   uint32_t *aligned_stack_int_pointer = (uint32_t*) aligned_stack_pointer;
-  printf("mamooli: %x   int: %x\n", aligned_stack_pointer, aligned_stack_int_pointer);
-  printf("probabale esp: %x\n", *esp - 60);
   for (int i = argc - 1; i > -1; i--) {
     uint32_t argLen = strlen(argv[i]) + 1;
     totalStackLength -= argLen;
     uint32_t start = totalStackLength;
-    for (int j = 0; j <= argLen; j++) {
-      aligned_stack_pointer[j + start]  = argv[i][j];
-    }
-    // memcpy(aligned_stack_pointer + start, argv[i], argLen);
-    printf("khodesh: %x 2 + i esh: %x\n", aligned_stack_int_pointer, &aligned_stack_int_pointer[2 + i]);
+    // for (int j = 0; j < argLen; j++) {
+      // aligned_stack_pointer[j + start]  = argv[i][j];
+    // }
+    memcpy(aligned_stack_pointer + start, argv[i], argLen);
     aligned_stack_int_pointer[2 + i] 
-    = (uint32_t) (*esp - 60 + start + (0xac - 0x6c));
+    = (uint32_t) (*esp + 4 + start);
   }
   aligned_stack_int_pointer[2 + argc] = 0;
-  aligned_stack_int_pointer[1] = (uint32_t) (*esp + (-60 + 4 + 0x98 - 0x5c) + 8);
+  aligned_stack_int_pointer[1] = (uint32_t) (*esp + 4 + 8);
   aligned_stack_int_pointer[0] = argc;
-
   return true;
 }
 // end
