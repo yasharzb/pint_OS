@@ -8,4 +8,12 @@ int process_wait (tid_t);
 void process_exit (void);
 void process_activate (void);
 
+
+
+// our code
+
+struct thread *my_process_execute (const char *file_name);
+
+// end
+
 #endif /* userprog/process.h */

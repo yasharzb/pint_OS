@@ -14,6 +14,32 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
+
+
+
+// our code
+
+void exec(const char* file_name) {
+  struct thread *t = my_process_execute(file_name);
+  struct thread *par = thread_current();
+  t->parent_tid = par->tid;
+  thread_unblock(t);
+  sema_down(&t->load_done);
+  if (t->load_success_status) {
+    //printf("failed to fork a new process\n");
+  } else {
+    //printf("new process forked successfully\n");
+  }
+}
+
+void _wait(tid_t child_tid) {
+  process_wait(child_tid);
+}
+
+// end
+
+
+
 static void
 syscall_handler (struct intr_frame *f UNUSED)
 {
@@ -37,10 +63,15 @@ syscall_handler (struct intr_frame *f UNUSED)
 
   //TODO Add syscalls
 
+ // our code
   if (args[0] == SYS_EXEC) {
-    printf("we're executing exec %d\n", SYS_EXEC);
-    printf("and args[1]: %s\n", args[1]);
-    process_execute(args[1]);
-    // khob in ja chickar konim hala :D ?
+    exec(args[1]);
+    struct thread *t = thread_current();
   }
+
+  if (args[0] == SYS_WAIT) {
+    _wait((tid_t) args[1]);
+  }
+
+  // end
 }

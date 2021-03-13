@@ -102,6 +102,16 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+
+
+
+
+   tid_t parent_tid;
+
+   bool load_success_status;
+   struct semaphore load_done;
+
   };
 
 /* If false (default), use round-robin scheduler.
@@ -139,5 +149,16 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+
+// our code
+
+struct thread *my_thread_create (const char *name, int priority,
+               thread_func *function, void *aux);
+
+
+struct thread *get_thread(tid_t tid);
+
+// end
 
 #endif /* threads/thread.h */

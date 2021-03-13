@@ -582,3 +582,80 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+
+
+struct thread
+*my_thread_create (const char *name, int priority,
+               thread_func *function, void *aux) {
+  struct thread *t;
+  struct kernel_thread_frame *kf;
+  struct switch_entry_frame *ef;
+  struct switch_threads_frame *sf;
+  tid_t tid;
+
+  ASSERT (function != NULL);
+
+  /* Allocate thread. */
+  t = palloc_get_page (PAL_ZERO);
+  if (t == NULL)
+    return TID_ERROR;
+
+  /* Initialize thread. */
+  init_thread (t, name, priority);
+  tid = t->tid = allocate_tid ();
+
+  /* Stack frame for kernel_thread(). */
+  kf = alloc_frame (t, sizeof *kf);
+  kf->eip = NULL;
+  kf->function = function;
+  kf->aux = aux;
+
+  /* Stack frame for switch_entry(). */
+  ef = alloc_frame (t, sizeof *ef);
+  ef->eip = (void (*) (void)) kernel_thread;
+
+  /* Stack frame for switch_threads(). */
+  sf = alloc_frame (t, sizeof *sf);
+  sf->eip = switch_entry;
+  sf->ebp = 0;
+
+  t->parent_tid = -1;
+
+  // sema_init(&t->exited, 0);
+  // t->exit_value = -1;
+
+  // sema_init(&t->can_free, 0);
+
+  // list_init(&t->children_list);
+  // do something with child_elem
+
+  t->load_success_status = false;
+  sema_init(&t->load_done, 0);
+
+  // t->fd_counter = 0;
+  // list_init(&t->fd_list);
+
+  /* Add to run queue. */
+  // thread_unblock (t);
+
+  return t;
+}
+
+struct thread *get_thread(tid_t tid) {
+  struct list_elem *e;
+
+  ASSERT (intr_get_level () == INTR_OFF);
+
+  for (e = list_begin (&all_list); e != list_end (&all_list);
+       e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, allelem);
+      if (t->tid == tid) {
+        return t;
+      }
+    }
+    return NULL;
+}
+
+// end
