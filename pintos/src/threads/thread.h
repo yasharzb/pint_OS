@@ -191,6 +191,8 @@ struct thread *my_thread_create (const char *name, int priority,
 
 struct thread *get_thread(tid_t tid);
 
+void thread_exit_value (int exit_value) NO_RETURN;
+
 // end
 
 #endif /* threads/thread.h */

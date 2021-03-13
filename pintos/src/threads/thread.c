@@ -308,7 +308,7 @@ thread_tid (void)
 }
 
 // our code
-void thread_exit_(int exit_value) {
+void thread_exit_value(int exit_value) {
   struct thread *cur = thread_current();
   cur->exit_value = exit_value;
   thread_exit();
@@ -329,6 +329,14 @@ thread_exit (void)
 
   // set exit value
   sema_up(&cur->exited);
+
+  for (e = list_begin (&cur->children_list); e != list_end (&cur->children_list);
+       e = list_next (e))
+    {
+      struct thread_list_elem *tle = list_entry (e, struct thread_list_elem, elem);
+      sema_up(&tle->t->can_free);
+    }
+
   sema_down(&cur->can_free);
 
   // end

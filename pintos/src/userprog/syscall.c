@@ -22,6 +22,8 @@ syscall_init (void)
 void exec(const char* file_name) {
   tid_t child_tid = process_execute(file_name);
   struct thread *t = get_thread(child_tid);
+
+  ASSERT(t != NULL);
   sema_down(&t->load_done);
   if (t->load_success_status) {
     //printf("failed to fork a new process\n");
@@ -30,8 +32,8 @@ void exec(const char* file_name) {
   }
 }
 
-void _wait(tid_t child_tid) {
-  process_wait(child_tid);
+int _wait(tid_t child_tid) {
+  return process_wait(child_tid);
 }
 
 // end
@@ -56,7 +58,12 @@ syscall_handler (struct intr_frame *f UNUSED)
     {
       f->eax = args[1];
       printf ("%s: exit(%d)\n", &thread_current ()->name, args[1]);
-      thread_exit ();
+
+      // our code
+      thread_exit_value(args[1]);
+      // end
+
+      // thread_exit ();
     }
 
   //TODO Add syscalls
@@ -68,7 +75,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   }
 
   if (args[0] == SYS_WAIT) {
-    _wait((tid_t) args[1]);
+    f->eax = _wait((tid_t) args[1]);
   }
 
   // end

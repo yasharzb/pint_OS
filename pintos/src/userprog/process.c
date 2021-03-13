@@ -125,10 +125,30 @@ int process_wait(tid_t child_tid UNUSED)
 
   // our code
 
-  struct thread *t = get_thread(child_tid);
+  struct thread *par = thread_current();
+
+  struct list_elem *e;
+  struct thread_list_elem *tle = NULL;
+  for (e = list_begin (&par->children_list); e != list_end (&par->children_list);
+       e = list_next (e))
+    {
+      struct thread_list_elem *temp = list_entry (e, struct thread_list_elem, elem);
+      if (temp->child_tid == child_tid)
+        tle = temp;
+    }
+  
+  if (tle == NULL) {
+    return -1;
+  }
+
+  struct thread *t = &tle->t;
+
+  list_remove(&tle->elem);
+
   sema_down(&t->exited);
   int exit_value = t->exit_value;
   sema_up(&t->can_free);
+  return exit_value;
 
   // end
 
