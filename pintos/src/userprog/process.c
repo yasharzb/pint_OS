@@ -87,6 +87,12 @@ start_process(void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load(file_name, &if_.eip, &if_.esp);
 
+  // our code
+  struct thread *t = thread_current();
+  t->load_success_status = success;
+  sema_up(&t->load_done);
+  // end
+
   /* If load failed, quit. */
   palloc_free_page(file_name);
   if (!success)
@@ -116,8 +122,18 @@ start_process(void *file_name_)
    does nothing. */
 int process_wait(tid_t child_tid UNUSED)
 {
-  sema_down(&temporary);
-  return 0;
+
+  // our code
+
+  struct thread *t = get_thread(child_tid);
+  sema_down(&t->exited);
+  int exit_value = t->exit_value;
+  sema_up(&t->can_free);
+
+  // end
+
+  // sema_down(&temporary);
+  // return 0;
 }
 
 /* Free the current process's resources. */
@@ -142,7 +158,7 @@ void process_exit(void)
     pagedir_activate(NULL);
     pagedir_destroy(pd);
   }
-  sema_up(&temporary);
+  // sema_up(&temporary);
 }
 
 /* Sets up the CPU for running user code in the current

@@ -20,10 +20,8 @@ syscall_init (void)
 // our code
 
 void exec(const char* file_name) {
-  struct thread *t = my_process_execute(file_name);
-  struct thread *par = thread_current();
-  t->parent_tid = par->tid;
-  thread_unblock(t);
+  tid_t child_tid = process_execute(file_name);
+  struct thread *t = get_thread(child_tid);
   sema_down(&t->load_done);
   if (t->load_success_status) {
     //printf("failed to fork a new process\n");

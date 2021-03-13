@@ -7,6 +7,8 @@
 #include "threads/synch.h"
 #include "threads/fixed-point.h"
 
+
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -25,6 +27,26 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+
+
+// our code
+
+struct thread_list_elem {
+
+   struct list_elem elem;
+
+   tid_t child_tid;
+   struct thread *t;
+
+   bool wait_on_called;
+
+   int exit_value;
+   bool exited;
+};
+
+// end
+
 
 /* A kernel thread or user process.
 
@@ -107,12 +129,17 @@ struct thread
 
 
 
-   tid_t parent_tid;
-
+   tid_t    parent_tid;
 
    struct list children_list;
 
+   struct thread_list_elem tle;
+
+
    struct semaphore exited;
+   int exit_value;
+
+   struct semaphore can_free;
 
    bool load_success_status;
    struct semaphore load_done;
@@ -163,20 +190,6 @@ struct thread *my_thread_create (const char *name, int priority,
 
 
 struct thread *get_thread(tid_t tid);
-
-
-struct thread_list_elem {
-
-   struct list_elem elem;
-
-   tid_t child_tid;
-   struct thread *t;
-
-   bool wait_on_called;
-
-   int exit_value;
-   bool exited;
-};
 
 // end
 

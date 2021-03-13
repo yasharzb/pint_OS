@@ -201,12 +201,26 @@ thread_create (const char *name, int priority,
 
   // our code
 
-  t->parent_tid = -1;
+
+  struct thread* par = thread_current();
+  t->tle.t = t;
+  t->tle.child_tid = t->tid;
+  t->tle.wait_on_called = false;
+  t->tle.exited = false;
+  t->tle.wait_on_called = false;
+  
+  t->tle.elem.next = NULL;
+  t->tle.elem.prev = NULL;
+
+  t->parent_tid = par->tid;
+  list_push_back(&par->children_list, &t->tle.elem);
+
+
 
   sema_init(&t->exited, 0);
-  // t->exit_value = -1;
+  t->exit_value = -1;
 
-  // sema_init(&t->can_free, 0);
+  sema_init(&t->can_free, 0);
 
   list_init(&t->children_list);
   // do something with child_elem
@@ -293,12 +307,31 @@ thread_tid (void)
   return thread_current ()->tid;
 }
 
+// our code
+void thread_exit_(int exit_value) {
+  struct thread *cur = thread_current();
+  cur->exit_value = exit_value;
+  thread_exit();
+}
+
+// end
+
 /* Deschedules the current thread and destroys it.  Never
    returns to the caller. */
 void
 thread_exit (void)
 {
   ASSERT (!intr_context ());
+
+  // our code
+
+  struct thread *cur = thread_current();
+
+  // set exit value
+  sema_up(&cur->exited);
+  sema_down(&cur->can_free);
+
+  // end
 
 #ifdef USERPROG
   process_exit ();
@@ -482,6 +515,11 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
+  // our code
+
+  list_init(&t->children_list);
+  // end
+
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -663,7 +701,7 @@ struct thread
 struct thread *get_thread(tid_t tid) {
   struct list_elem *e;
 
-  ASSERT (intr_get_level () == INTR_OFF);
+  // ASSERT (intr_get_level () == INTR_OFF);
 
   for (e = list_begin (&all_list); e != list_end (&all_list);
        e = list_next (e))
