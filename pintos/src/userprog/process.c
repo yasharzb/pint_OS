@@ -124,7 +124,7 @@ int process_wait(tid_t child_tid UNUSED)
 {
 
   // our code
-  goto label;
+  // goto label;
 
   struct thread *par = thread_current();
 
@@ -180,7 +180,7 @@ void process_exit(void)
     pagedir_activate(NULL);
     pagedir_destroy(pd);
   }
-  // sema_up(&temporary);
+  sema_up(&temporary);
 }
 
 /* Sets up the CPU for running user code in the current
@@ -606,7 +606,6 @@ bool alternative_setup_stack(int argc, char **argv, void **esp) {
     totalStackLength -= argLen;
     uint32_t start = totalStackLength;
     memcpy(aligned_stack_pointer + start, argv[i], argLen);
-    printf("khodesh: %x 2 + i esh: %x\n", aligned_stack_int_pointer, &aligned_stack_int_pointer[2 + i]);
     aligned_stack_int_pointer[2 + i] 
     = (uint32_t) (*esp + 4 + start);
   }

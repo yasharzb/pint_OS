@@ -324,7 +324,7 @@ thread_exit (void)
   ASSERT (!intr_context ());
 
   // our code
-  goto label;
+  // goto label;
 
   struct thread *cur = thread_current();
 
@@ -341,8 +341,8 @@ thread_exit (void)
 
   sema_down(&cur->can_free);
 
-  // end
   label:
+  // end
 
 #ifdef USERPROG
   process_exit ();

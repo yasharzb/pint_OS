@@ -71,7 +71,6 @@ syscall_handler (struct intr_frame *f UNUSED)
  // our code
   if (args[0] == SYS_EXEC) {
     exec(args[1]);
-    struct thread *t = thread_current();
   }
 
   if (args[0] == SYS_WAIT) {
