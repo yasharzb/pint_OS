@@ -109,6 +109,11 @@ struct thread
 
    tid_t parent_tid;
 
+
+   struct list children_list;
+
+   struct semaphore exited;
+
    bool load_success_status;
    struct semaphore load_done;
 
@@ -158,6 +163,20 @@ struct thread *my_thread_create (const char *name, int priority,
 
 
 struct thread *get_thread(tid_t tid);
+
+
+struct thread_list_elem {
+
+   struct list_elem elem;
+
+   tid_t child_tid;
+   struct thread *t;
+
+   bool wait_on_called;
+
+   int exit_value;
+   bool exited;
+};
 
 // end
 

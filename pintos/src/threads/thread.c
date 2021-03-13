@@ -198,6 +198,24 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+
+  // our code
+
+  t->parent_tid = -1;
+
+  sema_init(&t->exited, 0);
+  // t->exit_value = -1;
+
+  // sema_init(&t->can_free, 0);
+
+  list_init(&t->children_list);
+  // do something with child_elem
+
+  t->load_success_status = false;
+  sema_init(&t->load_done, 0);
+
+  // end
+
   /* Add to run queue. */
   thread_unblock (t);
 
@@ -622,12 +640,12 @@ struct thread
 
   t->parent_tid = -1;
 
-  // sema_init(&t->exited, 0);
+  sema_init(&t->exited, 0);
   // t->exit_value = -1;
 
   // sema_init(&t->can_free, 0);
 
-  // list_init(&t->children_list);
+  list_init(&t->children_list);
   // do something with child_elem
 
   t->load_success_status = false;
