@@ -124,6 +124,7 @@ int process_wait(tid_t child_tid UNUSED)
 {
 
   // our code
+  goto label;
 
   struct thread *par = thread_current();
 
@@ -150,10 +151,11 @@ int process_wait(tid_t child_tid UNUSED)
   sema_up(&t->can_free);
   return exit_value;
 
+  label:
   // end
 
-  // sema_down(&temporary);
-  // return 0;
+  sema_down(&temporary);
+  return 0;
 }
 
 /* Free the current process's resources. */
@@ -291,7 +293,7 @@ bool load(const char *file_name, void (**eip)(void), void **esp)
 // our code
   char *commands;
   if (strlen(file_name) > PGSIZE) {
-    // yekari shayad bayad bokonim
+    goto done;
   }
   commands = palloc_get_page(0);
   strlcpy(commands, file_name, PGSIZE);
@@ -299,7 +301,6 @@ bool load(const char *file_name, void (**eip)(void), void **esp)
   char *saved_pointer = NULL;
   char **argv = palloc_get_page(0);
   char *first_token = strtok_r(s, " ", &saved_pointer);
-  printf("first_token: %s\n", first_token);
   argv[0] = first_token;
   int argc = 1;
   while (true) {
@@ -308,10 +309,6 @@ bool load(const char *file_name, void (**eip)(void), void **esp)
       break;
     argv[argc] = token;
     argc++;
-    printf("token: %s\n", token);
-  }
-  for (int i = 0; i < argc; i++) {
-    printf("argv[%i]: %s\n", i, argv[i]);
   }
   file_name = first_token;
 
@@ -407,6 +404,14 @@ bool load(const char *file_name, void (**eip)(void), void **esp)
   success = true;
 
 done:
+
+  // our code
+
+  palloc_free_page(commands);
+  palloc_free_page(argv);
+
+  // end
+
   /* We arrive here whether the load is successful or not. */
   file_close(file);
   return success;
@@ -592,29 +597,21 @@ bool alternative_setup_stack(int argc, char **argv, void **esp) {
   uint32_t base = PGSIZE - C - totalStackLength;
   *esp -= totalStackLength;
   uint8_t *stack_pointer = kpage;
-  // uint8_t *aligned_stack_pointer = stack_pointer + (16 - (((int) stack_pointer) % 16)) % 16;
 
   uint8_t *aligned_stack_pointer = stack_pointer + base;
-  // for (int i = 0; i < PGSIZE; i++)
-    // kpage[i] = 0xaa;
 
   uint32_t *aligned_stack_int_pointer = (uint32_t*) aligned_stack_pointer;
-  printf("mamooli: %x   int: %x\n", aligned_stack_pointer, aligned_stack_int_pointer);
-  printf("probabale esp: %x\n", *esp - 60);
   for (int i = argc - 1; i > -1; i--) {
     uint32_t argLen = strlen(argv[i]) + 1;
     totalStackLength -= argLen;
     uint32_t start = totalStackLength;
-    for (int j = 0; j <= argLen; j++) {
-      aligned_stack_pointer[j + start]  = argv[i][j];
-    }
-    // memcpy(aligned_stack_pointer + start, argv[i], argLen);
+    memcpy(aligned_stack_pointer + start, argv[i], argLen);
     printf("khodesh: %x 2 + i esh: %x\n", aligned_stack_int_pointer, &aligned_stack_int_pointer[2 + i]);
     aligned_stack_int_pointer[2 + i] 
-    = (uint32_t) (*esp - 60 + start + (0xac - 0x6c));
+    = (uint32_t) (*esp + 4 + start);
   }
   aligned_stack_int_pointer[2 + argc] = 0;
-  aligned_stack_int_pointer[1] = (uint32_t) (*esp + (-60 + 4 + 0x98 - 0x5c) + 8);
+  aligned_stack_int_pointer[1] = (uint32_t) (*esp + 4 + 8);
   aligned_stack_int_pointer[0] = argc;
 
   return true;

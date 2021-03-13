@@ -324,12 +324,14 @@ thread_exit (void)
   ASSERT (!intr_context ());
 
   // our code
+  goto label;
 
   struct thread *cur = thread_current();
 
   // set exit value
   sema_up(&cur->exited);
 
+  struct list_elem *e;
   for (e = list_begin (&cur->children_list); e != list_end (&cur->children_list);
        e = list_next (e))
     {
@@ -340,6 +342,7 @@ thread_exit (void)
   sema_down(&cur->can_free);
 
   // end
+  label:
 
 #ifdef USERPROG
   process_exit ();
