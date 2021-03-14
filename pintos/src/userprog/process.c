@@ -51,6 +51,7 @@ tid_t process_execute(const char *file_name)
 static void
 start_process(void *file_name_)
 {
+
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
@@ -499,7 +500,6 @@ install_page(void *upage, void *kpage, bool writable)
   return (pagedir_get_page(t->pagedir, upage) == NULL && pagedir_set_page(t->pagedir, upage, kpage, writable));
 }
 
-// our code
 
 bool alternative_setup_stack(int argc, char **argv, void **esp)
 {
@@ -511,7 +511,7 @@ bool alternative_setup_stack(int argc, char **argv, void **esp)
   bool success = false;
   success = install_page(((uint8_t *)PHYS_BASE) - PGSIZE, kpage, true);
   if (success)
-    *esp = PHYS_BASE - 4;
+    *esp = PHYS_BASE;
   else
     goto done;
 
@@ -521,48 +521,72 @@ bool alternative_setup_stack(int argc, char **argv, void **esp)
     totalArgsLength += strlen(argv[i]) + 1;
   }
 
+  /* stack format at startup:
+          arg[argc-1][...]  
+          ...               
+          arg[0][...]       
+          word align if neseccery       
+          argv[argc]        
+          argv[argc - 1]    
+          ...       
+          argv[0]           
+          argv
+          argc
+  esp->   return addr */
+
   uint32_t align_count = 4 - (totalArgsLength % 4);
-  uint32_t totalStackLength =
+  uint32_t total_stack_length =
       totalArgsLength + align_count // argv chars and alignment
-      + 4 * argc                    // argv[i] pointer for i in [0, argc)
+      + 4 * (argc + 1)              // argv[i] pointer for i in [0, argc]
       + 4 * 2                       // argc and argv pointer
       + 4;                          // fake return address
 
-  if (totalStackLength >= PGSIZE)
+  if (total_stack_length >= PGSIZE)
   {
     success = false;
     goto done;
   }
 
-  uint32_t base = PGSIZE - totalStackLength;
-  *esp -= totalStackLength;
+  /* relation between esp and kpage
 
-  uint8_t *stack_pointer = kpage;
+           user va              kernel va
+        --------------       ---------------
+        | 0xbffff000 |       |    kpage     |
+        |   ...      |   ~   |     ...      |
+        | 0xbfffffff |       |kpage+PGSIZE-1|
+        --------------       ---------------
+esp->    0xc00000000            
 
-  char *aligned_stack_pointer = stack_pointer + base;
-  uint32_t *aligned_stack_int_pointer = (uint32_t *)aligned_stack_pointer;
+    so we need to put arguments in [kpage + PGSIZE - total_stack_length, kpage + PGSIZE) ~ [esp-total_stack_length, esp)
 
+  */
+
+  *esp -= total_stack_length;
+
+  uint8_t *stack_pointer = kpage + PGSIZE - total_stack_length;
+  uint32_t *stack_int_pointer = (uint32_t *)stack_pointer; // this is an "int" pointer for stack
+
+  int remaining_length = total_stack_length;
   for (int i = argc - 1; i >= 0; i--)
   {
     uint32_t argLen = strlen(argv[i]) + 1;
-    totalStackLength -= argLen;
-    uint32_t start = totalStackLength;
-    // for (int j = 0; j < argLen; j++) {
-    // aligned_stack_pointer[j + start]  = argv[i][j];
-    // }
-    memcpy(aligned_stack_pointer + start, argv[i], argLen);
-    aligned_stack_int_pointer[2 + i] = (uint32_t)(*esp + 4 + start);
-  }
-  aligned_stack_int_pointer[2 + argc] = 0;
-  aligned_stack_int_pointer[1] = (uint32_t)(*esp + 4 + 8);
-  aligned_stack_int_pointer[0] = argc;
+    remaining_length -= argLen;
 
-  //todo return address?
+    memcpy(stack_pointer + remaining_length, argv[i], argLen);
+
+    // put address of argv[i] in currect position (3 is for ra+argc+argv)
+    stack_int_pointer[3 + i] = (uint32_t)(*esp + remaining_length);
+  }
+  stack_int_pointer[2] = (uint32_t)(*esp + 12); //argv (12 is for ra+argc+argv)
+  stack_int_pointer[1] = argc;                  //argc
+  stack_int_pointer[0] = 0;                     //return address
+
+
+  // hex_dump((uintptr_t)*esp, *esp, sizeof(char) * total_stack_length, true);
 
 done:
-  if (!success)
+  if (!success && kpage)
     palloc_free_page(kpage);
 
   return success;
 }
-// end
