@@ -227,9 +227,10 @@ bool load(const char *file_name, void (**eip)(void), void **esp)
     goto done;
   process_activate();
 
-// our code
+  // our code
   char *commands;
-  if (strlen(file_name) > PGSIZE) {
+  if (strlen(file_name) > PGSIZE)
+  {
     // yekari shayad bayad bokonim
   }
   commands = palloc_get_page(0);
@@ -238,25 +239,26 @@ bool load(const char *file_name, void (**eip)(void), void **esp)
   char *saved_pointer = NULL;
   char **argv = palloc_get_page(0);
   char *first_token = strtok_r(s, " ", &saved_pointer);
-  printf("first_token: %s\n", first_token);
+  // printf("first_token: %s\n", first_token);
   argv[0] = first_token;
   int argc = 1;
-  while (true) {
+  while (true)
+  {
     char *token = strtok_r(NULL, " ", &saved_pointer);
     if (token == NULL)
       break;
     argv[argc] = token;
     argc++;
-    printf("token: %s\n", token);
+    // printf("token: %s\n", token);
   }
-  for (int i = 0; i < argc; i++) {
-    printf("argv[%i]: %s\n", i, argv[i]);
-  }
+  // for (int i = 0; i < argc; i++)
+  // {
+  //   printf("argv[%i]: %s\n", i, argv[i]);
+  // }
   file_name = first_token;
 
   // todo: don't forget to free argv and commands
   // end
-
 
   /* Open executable file. */
   file = filesys_open(file_name);
@@ -332,19 +334,18 @@ bool load(const char *file_name, void (**eip)(void), void **esp)
   }
 
   // our code
-    if (!alternative_setup_stack(argc, argv, esp))
-      goto done;
+  if (!alternative_setup_stack(argc, argv, esp))
+    goto done;
   // end
 
   /* Set up stack. */
   // if (!setup_stack(esp))
-    // goto done;
+  // goto done;
 
   /* Start address. */
   *eip = (void (*)(void))ehdr.e_entry;
 
   success = true;
-
 done:
   /* We arrive here whether the load is successful or not. */
   file_close(file);
@@ -498,52 +499,70 @@ install_page(void *upage, void *kpage, bool writable)
   return (pagedir_get_page(t->pagedir, upage) == NULL && pagedir_set_page(t->pagedir, upage, kpage, writable));
 }
 
-
-
 // our code
 
-bool alternative_setup_stack(int argc, char **argv, void **esp) {
+bool alternative_setup_stack(int argc, char **argv, void **esp)
+{
   uint8_t *kpage;
   kpage = palloc_get_page(PAL_USER | PAL_ZERO);
   if (kpage == NULL)
     return false;
-  int C = 0;
+
   bool success = false;
   success = install_page(((uint8_t *)PHYS_BASE) - PGSIZE, kpage, true);
   if (success)
-    *esp = PHYS_BASE - C - 4;
+    *esp = PHYS_BASE - 4;
   else
-    return false;
+    goto done;
 
   uint32_t totalArgsLength = 0;
-  for (int i = 0; i < argc; i++) {
+  for (int i = 0; i < argc; i++)
+  {
     totalArgsLength += strlen(argv[i]) + 1;
   }
-  uint32_t align_count = (4 - (totalArgsLength % 4)) % 4;
-  uint32_t totalStackLength = 
-        totalArgsLength 
-      + align_count // for aligment of argv chars
-      + 4 * (argc + 1) // argv[i] pointer for i in [0, argc]
-      + 4 * 2; // argc and argv pointer
-  uint32_t base = PGSIZE - C - totalStackLength;
+
+  uint32_t align_count = 4 - (totalArgsLength % 4);
+  uint32_t totalStackLength =
+      totalArgsLength + align_count // argv chars and alignment
+      + 4 * argc                    // argv[i] pointer for i in [0, argc)
+      + 4 * 2                       // argc and argv pointer
+      + 4;                          // fake return address
+
+  if (totalStackLength >= PGSIZE)
+  {
+    success = false;
+    goto done;
+  }
+
+  uint32_t base = PGSIZE - totalStackLength;
   *esp -= totalStackLength;
+
   uint8_t *stack_pointer = kpage;
-  uint8_t *aligned_stack_pointer = stack_pointer + base;
-  uint32_t *aligned_stack_int_pointer = (uint32_t*) aligned_stack_pointer;
-  for (int i = argc - 1; i > -1; i--) {
+
+  char *aligned_stack_pointer = stack_pointer + base;
+  uint32_t *aligned_stack_int_pointer = (uint32_t *)aligned_stack_pointer;
+
+  for (int i = argc - 1; i >= 0; i--)
+  {
     uint32_t argLen = strlen(argv[i]) + 1;
     totalStackLength -= argLen;
     uint32_t start = totalStackLength;
     // for (int j = 0; j < argLen; j++) {
-      // aligned_stack_pointer[j + start]  = argv[i][j];
+    // aligned_stack_pointer[j + start]  = argv[i][j];
     // }
     memcpy(aligned_stack_pointer + start, argv[i], argLen);
-    aligned_stack_int_pointer[2 + i] 
-    = (uint32_t) (*esp + 4 + start);
+    aligned_stack_int_pointer[2 + i] = (uint32_t)(*esp + 4 + start);
   }
   aligned_stack_int_pointer[2 + argc] = 0;
-  aligned_stack_int_pointer[1] = (uint32_t) (*esp + 4 + 8);
+  aligned_stack_int_pointer[1] = (uint32_t)(*esp + 4 + 8);
   aligned_stack_int_pointer[0] = argc;
-  return true;
+
+  //todo return address?
+
+done:
+  if (!success)
+    palloc_free_page(kpage);
+
+  return success;
 }
 // end
