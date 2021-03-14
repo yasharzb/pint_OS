@@ -24,21 +24,26 @@ void syscall_init(void)
 
 // our code
 
-void exec(const char *file_name)
+tid_t exec(const char *file_name)
 {
     tid_t child_tid = process_execute(file_name);
+    if (child_tid == TID_ERROR)
+        goto done;
     struct thread *t = get_thread(child_tid);
 
-    ASSERT(t != NULL);
-    sema_down(&t->load_done);
-    if (t->load_success_status)
+    if (t == NULL)
     {
-        //printf("failed to fork a new process\n");
+        child_tid = TID_ERROR;
+        goto done;
     }
-    else
+    if (!t->load_success_status)
     {
-        //printf("new process forked successfully\n");
+        child_tid = TID_ERROR;
+        goto done;
     }
+
+done:
+    return child_tid;
 }
 
 int _wait(tid_t child_tid)
@@ -69,6 +74,10 @@ syscall_handler(struct intr_frame *f UNUSED)
     case SYS_EXIT:
         f->eax = args[1];
         printf("%s: exit(%d)\n", &thread_current()->name, args[1]);
+
+        // set thread exit value (for wait)
+        thread_current()->exit_value = args[1];
+
         thread_exit();
         break;
 
@@ -95,8 +104,9 @@ syscall_handler(struct intr_frame *f UNUSED)
 
     /* pid_t exec (const char *cmd_line) */
     case SYS_EXEC:
-    buffer = get_kernel_va_for_user_pointer((void *)args[1]);
-        exec(buffer);
+        buffer = get_kernel_va_for_user_pointer((void *)args[1]);
+        tid_t child_tid = exec(buffer);
+        f->eax = child_tid;
         break;
 
     /* int wait (pid_t pid) */

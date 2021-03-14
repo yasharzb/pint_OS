@@ -121,19 +121,22 @@ struct thread
    /* Owned by thread.c. */
    unsigned magic; /* Detects stack overflow. */
 
-   tid_t parent_tid;
+   
+   tid_t parent_tid; /* Parent thread tid */
 
-   struct list children_list;
+   struct list children_list;   /* list of thread children */
+   struct list_elem child_elem; /* List element for children_list */
+
+   struct semaphore exited; /* semaphore for knowing if thread exited in wait */
+   int exit_value;          /* exit value of process */
+
+   bool wait_on_called;       /* true if parent already wait on process */
+   struct semaphore can_free; /* semaphore to know if thread struct can be freed */
+
+   bool load_success_status;   /* status of loading of executable file */
+   struct semaphore load_done; /* semaphore to know if executable has finished loading in exec */
 
    struct thread_list_elem tle;
-
-   struct semaphore exited;
-   int exit_value;
-
-   struct semaphore can_free;
-
-   bool load_success_status;
-   struct semaphore load_done;
 
    /* for storing file_descriptors */
    int fd_counter; // TODO initialize to 3
@@ -192,8 +195,9 @@ struct thread *my_thread_create(const char *name, int priority,
                                 thread_func *function, void *aux);
 
 struct thread *get_thread(tid_t tid);
+struct thread *get_child_thread(tid_t child_tid);
 
-void thread_exit_value(int exit_value) NO_RETURN;
+void set_thread_exit_value(int exit_value) NO_RETURN;
 
 // end
 

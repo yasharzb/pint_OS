@@ -43,6 +43,10 @@ tid_t process_execute(const char *file_name)
   tid = thread_create(file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page(fn_copy);
+
+  if (tid != TID_ERROR)
+    sema_down(&get_thread(tid)->load_done);
+
   return tid;
 }
 
@@ -126,37 +130,34 @@ int process_wait(tid_t child_tid UNUSED)
   // our code
   // goto label;
 
-  struct thread *par = thread_current();
-
-  struct list_elem *e;
-  struct thread_list_elem *tle = NULL;
-  for (e = list_begin(&par->children_list); e != list_end(&par->children_list);
-       e = list_next(e))
-  {
-    struct thread_list_elem *temp = list_entry(e, struct thread_list_elem, elem);
-    if (temp->child_tid == child_tid)
-      tle = temp;
-  }
-
-  if (tle == NULL)
-  {
+  // struct thread *par = thread_current();
+  struct thread *child = get_child_thread(child_tid);
+  if (child == NULL || child->wait_on_called)
     return -1;
-  }
 
-  struct thread *t = &tle->t;
+  //   struct list_elem *e;
+  //   struct thread_list_elem *tle = NULL;
+  //   for (e = list_begin(&par->children_list); e != list_end(&par->children_list);
+  //        e = list_next(e))
+  //   {
+  //     struct thread_list_elem *temp = list_entry(e, struct thread_list_elem, elem);
+  //     if (temp->child_tid == child_tid)
+  //       tle = temp;
+  //   }
 
-  list_remove(&tle->elem);
+  //   if (tle == NULL)
+  //   {
+  //     return -1;
+  //   }
 
-  sema_down(&t->exited);
-  int exit_value = t->exit_value;
-  sema_up(&t->can_free);
+  //   struct thread *t = &tle->t;
+
+  //   list_remove(&tle->elem);
+
+  sema_down(&child->exited);
+  int exit_value = child->exit_value;
+  sema_up(&child->can_free);
   return exit_value;
-
-label:
-  // end
-
-  sema_down(&temporary);
-  return 0;
 }
 
 /* Free the current process's resources. */
@@ -181,7 +182,8 @@ void process_exit(void)
     pagedir_activate(NULL);
     pagedir_destroy(pd);
   }
-  sema_up(&temporary);
+  sema_up(&cur->exited);
+  // sema_up(&temporary);
 }
 
 /* Sets up the CPU for running user code in the current

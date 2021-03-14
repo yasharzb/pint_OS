@@ -15,7 +15,6 @@
 #include "userprog/process.h"
 #endif
 
-
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -194,35 +193,39 @@ tid_t thread_create(const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
-
   // our code
 
-
-  struct thread* par = thread_current();
-  t->tle.t = t;
-  t->tle.child_tid = t->tid;
-  t->tle.wait_on_called = false;
-  t->tle.exited = false;
-  t->tle.wait_on_called = false;
-  
-  t->tle.elem.next = NULL;
-  t->tle.elem.prev = NULL;
-
+  /* set parent */
+  struct thread *par = thread_current();
   t->parent_tid = par->tid;
-  list_push_back(&par->children_list, &t->tle.elem);
 
+  /* set child */
 
+  list_push_back(&par->children_list, &t->child_elem);
+
+  // t->tle.t = t;
+  // t->tle.child_tid = t->tid;
+  // t->tle.wait_on_called = false;
+  // t->tle.exited = false;
+  // t->tle.wait_on_called = false;
+
+  // t->tle.elem.next = NULL;
+  // t->tle.elem.prev = NULL;
+
+  // list_push_back(&par->children_list, &t->tle.elem);
 
   sema_init(&t->exited, 0);
+  sema_init(&t->can_free, 0);
+  sema_init(&t->load_done, 0);
+
+  /* set default exit value in case of exception */
   t->exit_value = -1;
 
-  sema_init(&t->can_free, 0);
+  t->load_success_status = false;
+  t->wait_on_called = false;
 
   list_init(&t->children_list);
   // do something with child_elem
-
-  t->load_success_status = false;
-  sema_init(&t->load_done, 0);
 
   // end
 
@@ -301,14 +304,13 @@ tid_t thread_tid(void)
 }
 
 // our code
-void thread_exit_value(int exit_value) {
+void set_thread_exit_value(int exit_value)
+{
   struct thread *cur = thread_current();
   cur->exit_value = exit_value;
-  thread_exit();
 }
 
 // end
-
 /* Deschedules the current thread and destroys it.  Never
    returns to the caller. */
 void thread_exit(void)
@@ -324,16 +326,14 @@ void thread_exit(void)
   sema_up(&cur->exited);
 
   struct list_elem *e;
-  for (e = list_begin (&cur->children_list); e != list_end (&cur->children_list);
-       e = list_next (e))
-    {
-      struct thread_list_elem *tle = list_entry (e, struct thread_list_elem, elem);
-      sema_up(&tle->t->can_free);
-    }
+  for (e = list_begin(&cur->children_list); e != list_end(&cur->children_list);
+       e = list_next(e))
+  {
+    struct thread *t = list_entry(e, struct thread, child_elem);
+    sema_up(&t->can_free);
+  }
 
-  sema_down(&cur->can_free);
 
-  label:
   // end
 
 #ifdef USERPROG
@@ -345,6 +345,10 @@ void thread_exit(void)
      when it calls thread_schedule_tail(). */
   intr_disable();
   list_remove(&thread_current()->allelem);
+
+  // if (&cur->parent_tid)
+  sema_down(&cur->can_free);
+
   thread_current()->status = THREAD_DYING;
   schedule();
   NOT_REACHED();
@@ -519,9 +523,9 @@ init_thread(struct thread *t, const char *name, int priority)
   list_init(&t->children_list);
   // end
 
-  old_level = intr_disable ();
-  list_push_back (&all_list, &t->allelem);
-  intr_set_level (old_level);
+  old_level = intr_disable();
+  list_push_back(&all_list, &t->allelem);
+  intr_set_level(old_level);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -635,42 +639,42 @@ allocate_tid(void)
 
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
-uint32_t thread_stack_ofs = offsetof (struct thread, stack);
-
-
+uint32_t thread_stack_ofs = offsetof(struct thread, stack);
 
 struct thread
-*my_thread_create (const char *name, int priority,
-               thread_func *function, void *aux) {
+    *
+    my_thread_create(const char *name, int priority,
+                     thread_func *function, void *aux)
+{
   struct thread *t;
   struct kernel_thread_frame *kf;
   struct switch_entry_frame *ef;
   struct switch_threads_frame *sf;
   tid_t tid;
 
-  ASSERT (function != NULL);
+  ASSERT(function != NULL);
 
   /* Allocate thread. */
-  t = palloc_get_page (PAL_ZERO);
+  t = palloc_get_page(PAL_ZERO);
   if (t == NULL)
     return TID_ERROR;
 
   /* Initialize thread. */
-  init_thread (t, name, priority);
-  tid = t->tid = allocate_tid ();
+  init_thread(t, name, priority);
+  tid = t->tid = allocate_tid();
 
   /* Stack frame for kernel_thread(). */
-  kf = alloc_frame (t, sizeof *kf);
+  kf = alloc_frame(t, sizeof *kf);
   kf->eip = NULL;
   kf->function = function;
   kf->aux = aux;
 
   /* Stack frame for switch_entry(). */
-  ef = alloc_frame (t, sizeof *ef);
-  ef->eip = (void (*) (void)) kernel_thread;
+  ef = alloc_frame(t, sizeof *ef);
+  ef->eip = (void (*)(void))kernel_thread;
 
   /* Stack frame for switch_threads(). */
-  sf = alloc_frame (t, sizeof *sf);
+  sf = alloc_frame(t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
 
@@ -696,20 +700,42 @@ struct thread
   return t;
 }
 
-struct thread *get_thread(tid_t tid) {
+struct thread *get_thread(tid_t tid)
+{
   struct list_elem *e;
 
   // ASSERT (intr_get_level () == INTR_OFF);
 
-  for (e = list_begin (&all_list); e != list_end (&all_list);
-       e = list_next (e))
+  for (e = list_begin(&all_list); e != list_end(&all_list);
+       e = list_next(e))
+  {
+    struct thread *t = list_entry(e, struct thread, allelem);
+    if (t->tid == tid)
     {
-      struct thread *t = list_entry (e, struct thread, allelem);
-      if (t->tid == tid) {
-        return t;
-      }
+      return t;
     }
-    return NULL;
+  }
+  return NULL;
+}
+
+struct thread *get_child_thread(tid_t child_tid)
+{
+  struct thread *parent_thread = thread_current();
+
+  struct list_elem *e;
+
+  // ASSERT (intr_get_level () == INTR_OFF);
+
+  for (e = list_begin(&parent_thread->children_list); e != list_end(&parent_thread->children_list);
+       e = list_next(e))
+  {
+    struct thread *t = list_entry(e, struct thread, child_elem);
+    if (t->tid == child_tid)
+    {
+      return t;
+    }
+  }
+  return NULL;
 }
 
 // end
