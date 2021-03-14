@@ -10,6 +10,7 @@
 #include "pagedir.h"
 #include "threads/palloc.h"
 
+#include "userprog/exception.h"
 #include "userprog/process.h"
 
 static void syscall_handler(struct intr_frame *);
@@ -24,11 +25,22 @@ void syscall_init(void)
 }
 
 static void
-syscall_handler(struct intr_frame *f UNUSED)
+syscall_handler(struct intr_frame *f)
 {
     bool success = true;
+    void *buffer = NULL;
+
+    // TODO now this will try to copy 16 bytes from esp to kernel memory
+    // (since syscalls has at most 3 arg) but it should be dynamic based
+    // on syscall cause esp can be near end and can cause killing user 
+    // process when everything is good
     uint32_t *args = assign_args((uint32_t *)f->esp);
-    void *buffer;
+
+    if (args == NULL)
+    {
+        goto kill_process;
+    }
+
     /*
    * The following print statement, if uncommented, will print out the syscall
    * number whenever a process enters a system call. You might find it useful
@@ -43,10 +55,8 @@ syscall_handler(struct intr_frame *f UNUSED)
     /* void exit (int status) */
     case SYS_EXIT:
         f->eax = args[1];
-        printf("%s: exit(%d)\n", &thread_current()->name, args[1]);
-
         // set thread exit value (for wait)
-        set_thread_exit_value(args[1]);
+        prepare_thread_for_exit(args[1]);
         thread_exit();
         break;
 
@@ -55,10 +65,7 @@ syscall_handler(struct intr_frame *f UNUSED)
         // args[2] is a pointer so we need to validate it:
         buffer = get_kernel_va_for_user_pointer((void *)args[2]);
         if (buffer == NULL)
-        {
-            success = false;
-            goto done;
-        }
+            goto kill_process;
 
         if (args[1] == STDOUT_FILENO)
         {
@@ -74,6 +81,12 @@ syscall_handler(struct intr_frame *f UNUSED)
     /* pid_t exec (const char *cmd_line) */
     case SYS_EXEC:
         buffer = get_kernel_va_for_user_pointer((void *)args[1]);
+        if (buffer == NULL)
+        {
+            success = false;
+            goto done;
+        }
+
         tid_t child_tid = exec(buffer);
         f->eax = child_tid;
         break;
@@ -88,12 +101,19 @@ syscall_handler(struct intr_frame *f UNUSED)
     }
 
 done:
-    if (!success)
-        f->eax = -1;
 
     palloc_free_page(args);
-    if (buffer)
-        palloc_free_page(buffer);
+    palloc_free_page(buffer);
+
+    if (!success)
+        f->eax = -1;
+    return;
+
+kill_process:
+    palloc_free_page(args);
+    palloc_free_page(buffer);
+    prepare_thread_for_exit(-1);
+    thread_exit();
 }
 
 /**** exec syscall ****/

@@ -302,8 +302,9 @@ tid_t thread_tid(void)
   return thread_current()->tid;
 }
 
-void set_thread_exit_value(int exit_value)
+void prepare_thread_for_exit(int exit_value)
 {
+  printf("%s: exit(%d)\n", &thread_current()->name, exit_value);
   struct thread *cur = thread_current();
   cur->exit_value = exit_value;
 }
@@ -322,7 +323,6 @@ void thread_exit(void)
   /* sema up `exited` to let the parent know that the thread has exited */
   sema_up(&cur->exited);
 
-
   /* sema up remaining children `can_free` so they thread struct be freed */
   struct list_elem *e;
   for (e = list_begin(&cur->children_list); e != list_end(&cur->children_list);
@@ -331,7 +331,6 @@ void thread_exit(void)
     struct thread *t = list_entry(e, struct thread, child_elem);
     sema_up(&t->can_free);
   }
-
 
 #ifdef USERPROG
   process_exit();
@@ -343,13 +342,13 @@ void thread_exit(void)
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
-  
+
   intr_disable();
   list_remove(&thread_current()->allelem);
 
   /* remove from parent children_list */
   list_remove(&thread_current()->child_elem);
-  
+
   thread_current()->status = THREAD_DYING;
   schedule();
   NOT_REACHED();
@@ -641,7 +640,6 @@ allocate_tid(void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof(struct thread, stack);
-
 
 struct thread *get_thread(tid_t tid)
 {
