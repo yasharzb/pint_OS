@@ -411,31 +411,6 @@ do-stack-align: exit(12)‍
 
 ۱۸.
 
-<div dir="ltr">
-
-```bash
-(gdb) break sema_down
-Breakpoint 2 at 0xc00226fc: file ../../threads/synch.c, line 62.
-(gdb) c
-Continuing.
-
-Breakpoint 2, sema_down (sema=sema@entry=0xc0036efc <descs+316>) at ../../threads/synch.c:62
-(gdb) backtrace 
-#0  sema_down (sema=sema@entry=0xc0036efc <descs+316>) at ../../threads/synch.c:62
-#1  0xc0022a18 in lock_acquire (lock=lock@entry=0xc0036ef8 <descs+312>) at ../../threads/synch.c:199
-#2  0xc002388f in free (p=<optimized out>, p@entry=0xc010840c) at ../../threads/malloc.c:236
-#3  0xc002cde7 in inode_close (inode=0xc010840c) at ../../filesys/inode.c:184
-#4  0xc002c54f in file_close (file=file@entry=0xc010705c) at ../../filesys/file.c:51
-#5  0xc002afe1 in load (esp=0xc010afa0, eip=0xc010af94, file_name=<optimized out>) at ../../userprog/process.c:320
-#6  start_process (file_name_=<optimized out>, file_name_@entry=0xc0109000) at ../../userprog/process.c:65
-#7  0xc002132f in kernel_thread (function=0xc002ab3c <start_process>, aux=0xc0109000) at ../../threads/thread.c:424
-#8  0x00000000 in ?? ()
-```
-
-</div>
-
-بر روی تابع `sema_down` یک breakpoint می‌گذاریم. همانطور که معلوم است اجرای برنامه ابتدا به `load` در `start_process` می‌رسد و سپس به `file_close`  و `indoe_close` و `free` و `lock_acquire` و درانتها به `sema_down` می‌رسد.
-
 
 `sema_down(&temporary)` در تابع `process_wait` در فایل process.c قرار دارد.
 
