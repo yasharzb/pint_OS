@@ -12,7 +12,7 @@
 
 static void syscall_handler(struct intr_frame *);
 uint32_t *assign_args(uint32_t *esp);
-void *copy_user_mem_to_kernel(void *src, int size);
+void *copy_user_mem_to_kernel(void *src, int size, bool null_terminated);
 void *get_kernel_va_for_user_pointer(void *ptr);
 
 void syscall_init(void)
@@ -44,13 +44,18 @@ syscall_handler(struct intr_frame *f UNUSED)
   if (args[0] == SYS_WRITE) //int write (int fd, const void *buffer, unsigned size)
   {
     // args[2] is a pointer so we need to validate it:
-    args[2] = (uint32_t *)get_kernel_va_for_user_pointer((void *)args[2]);
-    
+    void * buffer = get_kernel_va_for_user_pointer((void *)args[2]);
+    if (buffer == NULL)
+      goto fail;
+
     if (args[1] == STDOUT_FILENO)
     {
-      putbuf((char *)args[2], args[3]);
+      putbuf((char *)buffer, args[3]);
     }
   }
+
+fail:
+  f->eax = -1;
 }
 
 uint32_t *
@@ -61,7 +66,7 @@ assign_args(uint32_t *esp)
     return false;
 
   /* copy arguments in user stack to kernel */
-  char *buffer = copy_user_mem_to_kernel(esp, MAX_SYSCALL_ARGS * 4);
+  char *buffer = copy_user_mem_to_kernel(esp, MAX_SYSCALL_ARGS * 4, false);
   if (buffer == NULL)
     return false;
 
@@ -73,7 +78,10 @@ assign_args(uint32_t *esp)
 void *
 get_kernel_va_for_user_pointer(void *ptr)
 {
-  char *buffer = copy_user_mem_to_kernel(ptr, MAX_SYSCALK_ARG_LENGTH);
+  if (ptr == NULL || !is_user_vaddr(ptr))
+    return NULL;
+
+  char *buffer = copy_user_mem_to_kernel(ptr, MAX_SYSCALK_ARG_LENGTH, true);
   if (buffer == NULL)
     return NULL;
 
@@ -83,38 +91,64 @@ get_kernel_va_for_user_pointer(void *ptr)
 }
 
 /* copy from src in user virtual address to dst in kernel virtual
-    address for size bytes. Max size can be PAGE_SIZE.
+    address. if null_terminated it will continue until reaching zero,
+    else it will copy `size` bytes. Max size can be PAGE_SIZE.
     (you can implement o.w. if you need.)
     will return NULL if fail. */
 void *
-copy_user_mem_to_kernel(void *src, int size)
+copy_user_mem_to_kernel(void *src, int size, bool null_terminated)
 {
   if (size > PGSIZE)
-    return NULL;
-
-  /* get kernel virtual address corresponding to src */
-  char *kernel_ptr = pagedir_get_page(thread_current()->pagedir, src);
-  if (kernel_ptr == NULL)
     return NULL;
 
   /* allocate a page to store data */
   char *buffer = palloc_get_page(0);
   if (buffer == NULL)
-    return NULL;
+    goto fail;
 
   char *current_address = src;
   int copied_size = 0;
   while (copied_size < size)
   {
+    if (!is_user_vaddr(current_address))
+      goto fail;
+
     /* maximum size that we can copy in this page */
     int cur_size = (uintptr_t)pg_round_up((void *)current_address) - (uintptr_t)current_address + 1;
     if (size - copied_size < cur_size)
       cur_size = size - copied_size;
-    
-    memcpy(buffer + copied_size, current_address, cur_size);
+
+    /* get kernel virtual address corresponding to currrent address */
+    char *kernel_address = pagedir_get_page(thread_current()->pagedir, (void *)current_address);
+    if (kernel_address == NULL)
+      goto fail;
+
+    memcpy(buffer + copied_size, kernel_address, cur_size);
+
+    /* we will search for null here if we need to copy until null */
+    if (null_terminated)
+    {
+      char *temp = buffer + copied_size;
+      bool null_found = false;
+      while (temp < buffer + copied_size + cur_size)
+      {
+        if (!(*temp))
+          null_found = true;
+        temp++;
+      }
+      // if null found stop copy.
+      if (null_found)
+        break;
+    }
+
     copied_size += cur_size;
     current_address += cur_size;
   }
 
   return buffer;
+
+fail:
+  if (buffer)
+    palloc_free_page(buffer);
+  return NULL;
 }
