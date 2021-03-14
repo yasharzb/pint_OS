@@ -229,7 +229,7 @@ bool load(const char *file_name, void (**eip)(void), void **esp)
     strtok_r
   */
 
-  file = filesys_open(cmd);
+  file = filesys_open(file_name);
   if (file == NULL)
   {
     printf("load: %s: open failed\n", file_name);
