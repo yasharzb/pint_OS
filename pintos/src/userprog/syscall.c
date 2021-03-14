@@ -23,6 +23,7 @@ void syscall_init(void)
 static void
 syscall_handler(struct intr_frame *f UNUSED)
 {
+  bool success = true;
   uint32_t *args = assign_args((uint32_t *)f->esp);
 
   /*
@@ -41,21 +42,32 @@ syscall_handler(struct intr_frame *f UNUSED)
     thread_exit();
   }
 
-  if (args[0] == SYS_WRITE) //int write (int fd, const void *buffer, unsigned size)
+  if (args[0] == SYS_WRITE) // int write (int fd, const void *buffer, unsigned size)
   {
     // args[2] is a pointer so we need to validate it:
-    void * buffer = get_kernel_va_for_user_pointer((void *)args[2]);
+    void *buffer = get_kernel_va_for_user_pointer((void *)args[2]);
     if (buffer == NULL)
-      goto fail;
+    {
+      success = false;
+      goto done;
+    }
 
     if (args[1] == STDOUT_FILENO)
     {
       putbuf((char *)buffer, args[3]);
     }
+    palloc_free_page(buffer);
   }
 
-fail:
-  f->eax = -1;
+  if (args[0] == SYS_PRACTICE) // int practice (int i)
+  {
+    f->eax = args[1] + 1;
+  }
+
+done:
+  if (!success)
+    f->eax = -1;
+  palloc_free_page(args);
 }
 
 uint32_t *
