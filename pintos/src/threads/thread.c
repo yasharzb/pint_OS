@@ -200,7 +200,6 @@ tid_t thread_create(const char *name, int priority,
   t->parent_tid = par->tid;
 
   /* set child */
-
   list_push_back(&par->children_list, &t->child_elem);
 
   // t->tle.t = t;
@@ -303,14 +302,12 @@ tid_t thread_tid(void)
   return thread_current()->tid;
 }
 
-// our code
 void set_thread_exit_value(int exit_value)
 {
   struct thread *cur = thread_current();
   cur->exit_value = exit_value;
 }
 
-// end
 /* Deschedules the current thread and destroys it.  Never
    returns to the caller. */
 void thread_exit(void)
@@ -322,9 +319,11 @@ void thread_exit(void)
 
   struct thread *cur = thread_current();
 
-  // set exit value
+  /* sema up `exited` to let the parent know that the thread has exited */
   sema_up(&cur->exited);
 
+
+  /* sema up remaining children `can_free` so they thread struct be freed */
   struct list_elem *e;
   for (e = list_begin(&cur->children_list); e != list_end(&cur->children_list);
        e = list_next(e))
@@ -334,21 +333,23 @@ void thread_exit(void)
   }
 
 
-  // end
-
 #ifdef USERPROG
   process_exit();
 #endif
 
+  /* wait for parent to let the thread die */
+  sema_down(&cur->can_free);
+
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
+  
   intr_disable();
   list_remove(&thread_current()->allelem);
 
-  // if (&cur->parent_tid)
-  sema_down(&cur->can_free);
-
+  /* remove from parent children_list */
+  list_remove(&thread_current()->child_elem);
+  
   thread_current()->status = THREAD_DYING;
   schedule();
   NOT_REACHED();
@@ -641,64 +642,6 @@ allocate_tid(void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof(struct thread, stack);
 
-struct thread
-    *
-    my_thread_create(const char *name, int priority,
-                     thread_func *function, void *aux)
-{
-  struct thread *t;
-  struct kernel_thread_frame *kf;
-  struct switch_entry_frame *ef;
-  struct switch_threads_frame *sf;
-  tid_t tid;
-
-  ASSERT(function != NULL);
-
-  /* Allocate thread. */
-  t = palloc_get_page(PAL_ZERO);
-  if (t == NULL)
-    return TID_ERROR;
-
-  /* Initialize thread. */
-  init_thread(t, name, priority);
-  tid = t->tid = allocate_tid();
-
-  /* Stack frame for kernel_thread(). */
-  kf = alloc_frame(t, sizeof *kf);
-  kf->eip = NULL;
-  kf->function = function;
-  kf->aux = aux;
-
-  /* Stack frame for switch_entry(). */
-  ef = alloc_frame(t, sizeof *ef);
-  ef->eip = (void (*)(void))kernel_thread;
-
-  /* Stack frame for switch_threads(). */
-  sf = alloc_frame(t, sizeof *sf);
-  sf->eip = switch_entry;
-  sf->ebp = 0;
-
-  t->parent_tid = -1;
-
-  sema_init(&t->exited, 0);
-  // t->exit_value = -1;
-
-  // sema_init(&t->can_free, 0);
-
-  list_init(&t->children_list);
-  // do something with child_elem
-
-  t->load_success_status = false;
-  sema_init(&t->load_done, 0);
-
-  // t->fd_counter = 0;
-  // list_init(&t->fd_list);
-
-  /* Add to run queue. */
-  // thread_unblock (t);
-
-  return t;
-}
 
 struct thread *get_thread(tid_t tid)
 {

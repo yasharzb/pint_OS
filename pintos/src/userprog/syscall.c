@@ -16,42 +16,12 @@ static void syscall_handler(struct intr_frame *);
 uint32_t *assign_args(uint32_t *esp);
 void *copy_user_mem_to_kernel(void *src, int size, bool null_terminated);
 void *get_kernel_va_for_user_pointer(void *ptr);
+tid_t exec(const char *file_name);
 
 void syscall_init(void)
 {
     intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
-
-// our code
-
-tid_t exec(const char *file_name)
-{
-    tid_t child_tid = process_execute(file_name);
-    if (child_tid == TID_ERROR)
-        goto done;
-    struct thread *t = get_thread(child_tid);
-
-    if (t == NULL)
-    {
-        child_tid = TID_ERROR;
-        goto done;
-    }
-    if (!t->load_success_status)
-    {
-        child_tid = TID_ERROR;
-        goto done;
-    }
-
-done:
-    return child_tid;
-}
-
-int _wait(tid_t child_tid)
-{
-    return process_wait(child_tid);
-}
-
-// end
 
 static void
 syscall_handler(struct intr_frame *f UNUSED)
@@ -76,8 +46,7 @@ syscall_handler(struct intr_frame *f UNUSED)
         printf("%s: exit(%d)\n", &thread_current()->name, args[1]);
 
         // set thread exit value (for wait)
-        thread_current()->exit_value = args[1];
-
+        set_thread_exit_value(args[1]);
         thread_exit();
         break;
 
@@ -111,7 +80,7 @@ syscall_handler(struct intr_frame *f UNUSED)
 
     /* int wait (pid_t pid) */
     case SYS_WAIT:
-        f->eax = _wait((tid_t)args[1]);
+        f->eax = process_wait((tid_t)args[1]);
         break;
 
     default:
@@ -126,6 +95,32 @@ done:
     if (buffer)
         palloc_free_page(buffer);
 }
+
+/**** exec syscall ****/
+
+tid_t exec(const char *file_name)
+{
+    tid_t child_tid = process_execute(file_name);
+    if (child_tid == TID_ERROR)
+        goto done;
+    struct thread *t = get_thread(child_tid);
+
+    if (t == NULL)
+    {
+        child_tid = TID_ERROR;
+        goto done;
+    }
+    if (!t->load_success_status)
+    {
+        child_tid = TID_ERROR;
+        goto done;
+    }
+
+done:
+    return child_tid;
+}
+
+/**** accessing user memory ****/
 
 uint32_t *
 assign_args(uint32_t *esp)

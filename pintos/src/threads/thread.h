@@ -197,7 +197,7 @@ struct thread *my_thread_create(const char *name, int priority,
 struct thread *get_thread(tid_t tid);
 struct thread *get_child_thread(tid_t child_tid);
 
-void set_thread_exit_value(int exit_value) NO_RETURN;
+void set_thread_exit_value(int exit_value);
 
 // end
 

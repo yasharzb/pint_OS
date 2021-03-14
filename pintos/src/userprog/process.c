@@ -50,29 +50,6 @@ tid_t process_execute(const char *file_name)
   return tid;
 }
 
-// our code
-
-struct thread *my_process_execute(const char *file_name)
-{
-  char *fn_copy;
-  tid_t tid;
-
-  sema_init(&temporary, 0);
-  /* Make a copy of FILE_NAME.
-     Otherwise there's a race between the caller and load(). */
-  fn_copy = palloc_get_page(0);
-  if (fn_copy == NULL)
-    return TID_ERROR;
-  strlcpy(fn_copy, file_name, PGSIZE);
-
-  /* Create a new thread to execute FILE_NAME. */
-  struct thread *t = my_thread_create(file_name, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
-    palloc_free_page(fn_copy);
-  return t;
-}
-
-// end
 
 /* A thread function that loads a user process and starts it
    running. */
@@ -126,15 +103,12 @@ start_process(void *file_name_)
    does nothing. */
 int process_wait(tid_t child_tid UNUSED)
 {
-
-  // our code
-  // goto label;
-
-  // struct thread *par = thread_current();
+  /*check if thread exist in currect thread children */
   struct thread *child = get_child_thread(child_tid);
   if (child == NULL || child->wait_on_called)
     return -1;
 
+  // struct thread *par = thread_current();
   //   struct list_elem *e;
   //   struct thread_list_elem *tle = NULL;
   //   for (e = list_begin(&par->children_list); e != list_end(&par->children_list);
@@ -144,19 +118,23 @@ int process_wait(tid_t child_tid UNUSED)
   //     if (temp->child_tid == child_tid)
   //       tle = temp;
   //   }
-
   //   if (tle == NULL)
   //   {
   //     return -1;
   //   }
-
   //   struct thread *t = &tle->t;
-
   //   list_remove(&tle->elem);
 
+  /* set wait_on_called true so no other wait happen on this pid */
+  child->wait_on_called = true;
+
+  /* wait for child to exit */
   sema_down(&child->exited);
   int exit_value = child->exit_value;
+
+  /* tell child that it can die peacefully */
   sema_up(&child->can_free);
+
   return exit_value;
 }
 
