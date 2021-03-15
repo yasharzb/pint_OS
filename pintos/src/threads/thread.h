@@ -26,7 +26,6 @@ typedef int tid_t;
 #define PRI_DEFAULT 31 /* Default priority. */
 #define PRI_MAX 63     /* Highest priority. */
 
-
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -104,7 +103,6 @@ struct thread
    /* Owned by thread.c. */
    unsigned magic; /* Detects stack overflow. */
 
-   
    tid_t parent_tid; /* Parent thread tid */
 
    struct list children_list;   /* list of thread children */
@@ -119,19 +117,19 @@ struct thread
    bool load_success_status;   /* status of loading of executable file */
    struct semaphore load_done; /* semaphore to know if executable has finished loading in exec */
 
-
    /* for storing file_descriptors */
    int fd_counter; // TODO initialize to 3
    struct list fd_list;
 };
 
 // TODO move these in another file?
-struct file_descriptor
+typedef struct file_descriptor
 {
    struct file *file;
+   char *file_name;
    int fd;
    struct list_elem fd_elem;
-};
+} file_descriptor;
 
 struct file *get_file_from_fd(int fd);
 

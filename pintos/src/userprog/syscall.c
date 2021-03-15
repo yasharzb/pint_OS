@@ -18,6 +18,8 @@ uint32_t *assign_args(uint32_t *esp);
 void *copy_user_mem_to_kernel(void *src, int size, bool null_terminated);
 void *get_kernel_va_for_user_pointer(void *ptr);
 tid_t exec(const char *file_name);
+char *find_file_name(int fd, struct list *fd_list);
+void close_all(char *file_name, struct list *fd_list);
 
 void syscall_init(void)
 {
@@ -29,6 +31,7 @@ syscall_handler(struct intr_frame *f)
 {
     bool success = true;
     void *buffer = NULL;
+    struct thread *cur_thread;
 
     // TODO now this will try to copy 16 bytes from esp to kernel memory
     // (since syscalls has at most 3 arg) but it should be dynamic based
@@ -103,9 +106,34 @@ syscall_handler(struct intr_frame *f)
         break;
 
     case SYS_OPEN:
+        buffer = get_kernel_va_for_user_pointer((void *)args[1]);
+        cur_thread = thread_current();
+        file_descriptor *file_d = palloc_get_page(0);
+        if (file_d == NULL)
+        {
+            success = false;
+            goto done;
+        }
+        file_d->fd = cur_thread->fd_counter++;
+        struct file *o_file = filesys_open(buffer);
+        if (o_file == NULL)
+        {
+            success = false;
+            goto done;
+        }
+        file_d->file = o_file;
+        list_push_back(&cur_thread->fd_list, &file_d->fd_elem);
+        f->eax = file_d->fd;
         break;
 
     case SYS_CLOSE:
+        cur_thread = thread_current();
+        int fd = atoi(args[1]);
+        char *file_name = find_file_name(fd, &cur_thread->fd_list);
+        if (file_name != NULL)
+            close_all(file_name, &cur_thread->fd_list);
+        else
+            success = false;
         break;
 
     case SYS_FILESIZE:
@@ -119,7 +147,7 @@ syscall_handler(struct intr_frame *f)
 
     case SYS_SEEK:
         break;
-        
+
     default:
         break;
     }
@@ -260,4 +288,35 @@ fail:
     if (buffer)
         palloc_free_page(buffer);
     return NULL;
+}
+
+char *find_file_name(int fd, struct list *fd_list)
+{
+    struct list_elem *e;
+    file_descriptor *file_d;
+    char *file_name = NULL;
+    for (e = list_begin(fd_list); e != list_end(fd_list); e = list_next(e))
+    {
+        file_d = list_entry(e, file_descriptor, fd_elem);
+        if (file_d->fd == fd)
+        {
+            file_name = file_d->file_name;
+            break;
+        }
+    }
+}
+
+void close_all(char *file_name, struct list *fd_list)
+{
+    struct list_elem *e;
+    file_descriptor *file_d;
+    for (e = list_begin(fd_list); e != list_end(fd_list); e = list_next(e))
+    {
+        file_d = list_entry(e, file_descriptor, fd_elem);
+        if (strcmp(file_d->file_name, file_name) == 0)
+        {
+            list_remove(&file_d->fd_elem);
+            file_close(file_d->file);
+        }
+    }
 }
