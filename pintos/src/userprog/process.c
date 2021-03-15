@@ -552,7 +552,8 @@ install_page(void *upage, void *kpage, bool writable)
     return (pagedir_get_page(t->pagedir, upage) == NULL && pagedir_set_page(t->pagedir, upage, kpage, writable));
 }
 
-bool alternative_setup_stack(int argc, char **argv, void **esp)
+bool
+alternative_setup_stack(int argc, char **argv, void **esp)
 {
     uint8_t *kpage;
     kpage = palloc_get_page(PAL_USER | PAL_ZERO);
@@ -645,3 +646,5 @@ done:
 
     return success;
 }
+
+

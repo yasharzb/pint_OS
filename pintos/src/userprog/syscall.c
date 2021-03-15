@@ -32,7 +32,7 @@ syscall_handler(struct intr_frame *f)
 
     // TODO now this will try to copy 16 bytes from esp to kernel memory
     // (since syscalls has at most 3 arg) but it should be dynamic based
-    // on syscall cause esp can be near end and can cause killing user 
+    // on syscall cause esp can be near end and can cause killing user
     // process when everything is good
     uint32_t *args = assign_args((uint32_t *)f->esp);
 
@@ -96,6 +96,47 @@ syscall_handler(struct intr_frame *f)
         f->eax = process_wait((tid_t)args[1]);
         break;
 
+    case SYS_CREATE:
+        buffer = get_kernel_va_for_user_pointer((void *)args[1]);
+        if(buffer == NULL)
+        {
+            success = false;
+            goto kill_process;
+        }
+
+        f->eax = create_file(buffer, (unsigned) args[2]);
+        break;
+
+    case SYS_REMOVE:
+        buffer = get_kernel_va_for_user_pointer((void *)args[1]);
+        if(buffer == NULL)
+        {
+            success = false;
+            goto kill_process;
+        }
+
+        f->eax = remove_file(buffer);
+        break;
+
+    case SYS_OPEN:
+        break;
+
+    case SYS_CLOSE:
+        break;
+
+    case SYS_FILESIZE:
+        f->eax = size_file((int) arg[1]);
+        break;
+
+    case SYS_READ:
+        break;
+
+    case SYS_TELL:
+        break;
+
+    case SYS_SEEK:
+        break;
+        
     default:
         break;
     }

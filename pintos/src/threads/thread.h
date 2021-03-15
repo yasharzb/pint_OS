@@ -123,13 +123,17 @@ struct thread
    /* for storing file_descriptors */
    int fd_counter; // TODO initialize to 3
    struct list fd_list;
+   struct list_elem fd_elem;
 };
 
 // TODO move these in another file?
 struct file_descriptor
 {
    struct file *file;
+   char *filename;
    int fd;
+   bool closed;
+   bool removed;
    struct list_elem fd_elem;
 };
 
@@ -180,6 +184,10 @@ struct thread *get_thread(tid_t tid);
 struct thread *get_child_thread(tid_t child_tid);
 
 void prepare_thread_for_exit(int exit_value);
+
+bool remove_file(const char *fn);
+bool create_file(const char *name, off_t initial_size);
+int size_file(int fd);
 
 // end
 
