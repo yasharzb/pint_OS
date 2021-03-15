@@ -602,7 +602,7 @@ bool alternative_setup_stack(int argc, char **argv, void **esp)
           argc
   esp->   return addr */
 
-    uint32_t align_count = 4 - (totalArgsLength % 4);
+    uint32_t align_count = (4 - (totalArgsLength % 4)) % 4;
     uint32_t total_stack_length =
         totalArgsLength + align_count // argv chars and alignment
         + 4 * (argc + 1)              // argv[i] pointer for i in [0, argc]
