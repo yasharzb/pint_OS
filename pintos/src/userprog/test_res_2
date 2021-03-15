@@ -25,8 +25,8 @@ pass tests/userprog/open-normal
 pass tests/userprog/open-missing
 pass tests/userprog/open-boundary
 pass tests/userprog/open-empty
-FAIL tests/userprog/open-null
-FAIL tests/userprog/open-bad-ptr
+pass tests/userprog/open-null
+pass tests/userprog/open-bad-ptr
 pass tests/userprog/open-twice
 FAIL tests/userprog/close-normal
 FAIL tests/userprog/close-twice
@@ -88,7 +88,7 @@ FAIL tests/filesys/base/sm-seq-random
 FAIL tests/filesys/base/syn-read
 FAIL tests/filesys/base/syn-remove
 FAIL tests/filesys/base/syn-write
-38 of 88 tests failed.
+36 of 88 tests failed.
 ../../tests/Make.tests:34: recipe for target 'check' failed
 make[1]: Leaving directory '/home/vagrant/code/group/ce424-992-group4/pintos/src/userprog/build'
 ../Makefile.kernel:10: recipe for target 'check' failed

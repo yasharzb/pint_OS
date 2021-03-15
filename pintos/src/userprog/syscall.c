@@ -106,7 +106,18 @@ syscall_handler(struct intr_frame *f)
         break;
 
     case SYS_OPEN:
+        if (args[1] == NULL)
+        {
+            success = false;
+            goto done;
+        }
+
         buffer = get_kernel_va_for_user_pointer((void *)args[1]);
+        if (buffer == NULL)
+        {
+            goto kill_process;
+        }
+
         cur_thread = thread_current();
         file_descriptor *file_d = palloc_get_page(0);
         if (file_d == NULL)
