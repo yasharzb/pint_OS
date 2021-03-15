@@ -13,7 +13,7 @@
 #include "userprog/exception.h"
 #include "userprog/process.h"
 
-#define INT_MAX 2147483647
+#define MAX_FD 1025
 
 static void syscall_handler(struct intr_frame *);
 uint32_t *assign_args(uint32_t *esp);
@@ -21,7 +21,7 @@ void *copy_user_mem_to_kernel(void *src, int size, bool null_terminated);
 void *get_kernel_va_for_user_pointer(void *ptr);
 tid_t exec(const char *file_name);
 bool create_file_descriptor(char *buffer, struct thread *cur_thread, file_descriptor *file_d);
-int is_valid_fd(void *buffer);
+int is_valid_fd(long *args);
 char *find_file_name(int fd, struct list *fd_list);
 void close_all(char *file_name, struct list *fd_list);
 
@@ -135,10 +135,7 @@ syscall_handler(struct intr_frame *f)
             success = false;
             goto done;
         }
-        buffer = get_kernel_va_for_user_pointer((void *)args[1]);
-        if (buffer == NULL)
-            goto kill_process;
-        int fd = is_valid_fd(buffer);
+        int fd = is_valid_fd((long *)args);
         if (fd == -1)
         {
             success = false;
@@ -316,36 +313,33 @@ bool create_file_descriptor(char *buffer, struct thread *cur_thread, file_descri
     struct file *o_file = filesys_open(buffer);
     if (o_file == NULL)
         return false;
+    file_d->file_name = buffer;
     file_d->file = o_file;
     list_push_back(&cur_thread->fd_list, &file_d->fd_elem);
     return true;
 }
 
-int is_valid_fd(void *buffer)
+int is_valid_fd(long *args)
 {
-    long *l_fd = (long *)buffer;
-    if (*l_fd > INT_MAX)
+    long l_fd = args[1];
+    if (l_fd > MAX_FD)
         return -1;
-    if (*l_fd < INITIAL_FD_COUNT)
+    if (l_fd < INITIAL_FD_COUNT)
         return -1;
-    return (int)(*l_fd);
+    return (int)(l_fd);
 }
 
 char *find_file_name(int fd, struct list *fd_list)
 {
     struct list_elem *e;
     file_descriptor *file_d;
-    char *file_name = NULL;
     for (e = list_begin(fd_list); e != list_end(fd_list); e = list_next(e))
     {
         file_d = list_entry(e, file_descriptor, fd_elem);
         if (file_d->fd == fd)
-        {
-            file_name = file_d->file_name;
-            break;
-        }
+            return file_d->file_name;
     }
-    return file_name;
+    return NULL;
 }
 
 void close_all(char *file_name, struct list *fd_list)
