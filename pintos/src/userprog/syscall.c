@@ -13,11 +13,15 @@
 #include "userprog/exception.h"
 #include "userprog/process.h"
 
+#define INT_MAX 2147483647
+
 static void syscall_handler(struct intr_frame *);
 uint32_t *assign_args(uint32_t *esp);
 void *copy_user_mem_to_kernel(void *src, int size, bool null_terminated);
 void *get_kernel_va_for_user_pointer(void *ptr);
 tid_t exec(const char *file_name);
+bool create_file_descriptor(char *buffer, struct thread *cur_thread, file_descriptor *file_d);
+int is_valid_fd(void *buffer);
 char *find_file_name(int fd, struct list *fd_list);
 void close_all(char *file_name, struct list *fd_list);
 
@@ -106,7 +110,7 @@ syscall_handler(struct intr_frame *f)
         break;
 
     case SYS_OPEN:
-        if (args[1] == NULL)
+        if ((void *)args[1] == NULL)
         {
             success = false;
             goto done;
@@ -114,34 +118,33 @@ syscall_handler(struct intr_frame *f)
 
         buffer = get_kernel_va_for_user_pointer((void *)args[1]);
         if (buffer == NULL)
-        {
             goto kill_process;
-        }
-
         cur_thread = thread_current();
         file_descriptor *file_d = palloc_get_page(0);
-        if (file_d == NULL)
+        if (!create_file_descriptor((char *)buffer, cur_thread, file_d))
         {
             success = false;
             goto done;
         }
-        if (cur_thread->fd_counter == INITIAL_FD_COUNT)
-            list_init(&cur_thread->fd_list);
-        file_d->fd = cur_thread->fd_counter++;
-        struct file *o_file = filesys_open(buffer);
-        if (o_file == NULL)
-        {
-            success = false;
-            goto done;
-        }
-        file_d->file = o_file;
-        list_push_back(&cur_thread->fd_list, &file_d->fd_elem);
         f->eax = file_d->fd;
         break;
 
     case SYS_CLOSE:
+        if ((void *)args[1] == NULL)
+        {
+            success = false;
+            goto done;
+        }
+        buffer = get_kernel_va_for_user_pointer((void *)args[1]);
+        if (buffer == NULL)
+            goto kill_process;
+        int fd = is_valid_fd(buffer);
+        if (fd == -1)
+        {
+            success = false;
+            goto done;
+        }
         cur_thread = thread_current();
-        int fd = atoi(args[1]);
         char *file_name = find_file_name(fd, &cur_thread->fd_list);
         if (file_name != NULL)
             close_all(file_name, &cur_thread->fd_list);
@@ -303,6 +306,31 @@ fail:
     return NULL;
 }
 
+bool create_file_descriptor(char *buffer, struct thread *cur_thread, file_descriptor *file_d)
+{
+    if (file_d == NULL)
+        return false;
+    if (cur_thread->fd_counter == INITIAL_FD_COUNT)
+        list_init(&cur_thread->fd_list);
+    file_d->fd = cur_thread->fd_counter++;
+    struct file *o_file = filesys_open(buffer);
+    if (o_file == NULL)
+        return false;
+    file_d->file = o_file;
+    list_push_back(&cur_thread->fd_list, &file_d->fd_elem);
+    return true;
+}
+
+int is_valid_fd(void *buffer)
+{
+    long *l_fd = (long *)buffer;
+    if (*l_fd > INT_MAX)
+        return -1;
+    if (*l_fd < INITIAL_FD_COUNT)
+        return -1;
+    return (int)(*l_fd);
+}
+
 char *find_file_name(int fd, struct list *fd_list)
 {
     struct list_elem *e;
@@ -317,6 +345,7 @@ char *find_file_name(int fd, struct list *fd_list)
             break;
         }
     }
+    return file_name;
 }
 
 void close_all(char *file_name, struct list *fd_list)
