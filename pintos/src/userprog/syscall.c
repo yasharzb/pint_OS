@@ -114,6 +114,8 @@ syscall_handler(struct intr_frame *f)
             success = false;
             goto done;
         }
+        if (cur_thread->fd_counter == INITIAL_FD_COUNT)
+            list_init(&cur_thread->fd_list);
         file_d->fd = cur_thread->fd_counter++;
         struct file *o_file = filesys_open(buffer);
         if (o_file == NULL)

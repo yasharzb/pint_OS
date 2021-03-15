@@ -22,9 +22,10 @@ typedef int tid_t;
 #define TID_ERROR ((tid_t)-1) /* Error value for tid_t. */
 
 /* Thread priorities. */
-#define PRI_MIN 0      /* Lowest priority. */
-#define PRI_DEFAULT 31 /* Default priority. */
-#define PRI_MAX 63     /* Highest priority. */
+#define PRI_MIN 0          /* Lowest priority. */
+#define PRI_DEFAULT 31     /* Default priority. */
+#define PRI_MAX 63         /* Highest priority. */
+#define INITIAL_FD_COUNT 2 /* Thread initial fd count */
 
 /* A kernel thread or user process.
 

@@ -212,6 +212,9 @@ tid_t thread_create(const char *name, int priority,
   t->load_success_status = false;
   t->wait_on_called = false;
 
+  //Set minimum fd to 2
+  t->fd_counter = INITIAL_FD_COUNT;
+
   list_init(&t->children_list);
   // do something with child_elem
 
