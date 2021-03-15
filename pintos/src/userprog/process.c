@@ -125,23 +125,6 @@ int process_wait(tid_t child_tid UNUSED)
     if (child == NULL || child->wait_on_called)
         return -1;
 
-    // struct thread *par = thread_current();
-    //   struct list_elem *e;
-    //   struct thread_list_elem *tle = NULL;
-    //   for (e = list_begin(&par->children_list); e != list_end(&par->children_list);
-    //        e = list_next(e))
-    //   {
-    //     struct thread_list_elem *temp = list_entry(e, struct thread_list_elem, elem);
-    //     if (temp->child_tid == child_tid)
-    //       tle = temp;
-    //   }
-    //   if (tle == NULL)
-    //   {
-    //     return -1;
-    //   }
-    //   struct thread *t = &tle->t;
-    //   list_remove(&tle->elem);
-
     /* set wait_on_called true so no other wait happen on this pid */
     child->wait_on_called = true;
 
@@ -611,7 +594,7 @@ bool alternative_setup_stack(int argc, char **argv, void **esp)
 
 
     // stack must be 16 aligned before return address
-    uint32_t align_count_before_args = (16 - (total_stack_length - 4) % 16);
+    uint32_t align_count_before_args = (16 - (total_stack_length - 4) % 16) % 16;
     
     total_stack_length += align_count_before_args;
     if (total_stack_length >= PGSIZE)

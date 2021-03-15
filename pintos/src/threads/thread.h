@@ -26,23 +26,6 @@ typedef int tid_t;
 #define PRI_DEFAULT 31 /* Default priority. */
 #define PRI_MAX 63     /* Highest priority. */
 
-// our code
-
-struct thread_list_elem
-{
-
-   struct list_elem elem;
-
-   tid_t child_tid;
-   struct thread *t;
-
-   bool wait_on_called;
-
-   int exit_value;
-   bool exited;
-};
-
-// end
 
 /* A kernel thread or user process.
 
@@ -136,7 +119,6 @@ struct thread
    bool load_success_status;   /* status of loading of executable file */
    struct semaphore load_done; /* semaphore to know if executable has finished loading in exec */
 
-   struct thread_list_elem tle;
 
    /* for storing file_descriptors */
    int fd_counter; // TODO initialize to 3

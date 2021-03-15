@@ -202,17 +202,6 @@ tid_t thread_create(const char *name, int priority,
   /* set child */
   list_push_back(&par->children_list, &t->child_elem);
 
-  // t->tle.t = t;
-  // t->tle.child_tid = t->tid;
-  // t->tle.wait_on_called = false;
-  // t->tle.exited = false;
-  // t->tle.wait_on_called = false;
-
-  // t->tle.elem.next = NULL;
-  // t->tle.elem.prev = NULL;
-
-  // list_push_back(&par->children_list, &t->tle.elem);
-
   sema_init(&t->exited, 0);
   sema_init(&t->can_free, 0);
   sema_init(&t->load_done, 0);
