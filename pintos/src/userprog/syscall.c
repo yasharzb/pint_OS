@@ -197,6 +197,7 @@ syscall_handler(struct intr_frame *f)
         break;
 
     case SYS_SEEK:
+        f-eax = seek_file((int)args[1], (unsigned)args[2]);
         break;
         
     default:
