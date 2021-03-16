@@ -23,6 +23,8 @@ tid_t exec(const char *file_name);
 bool create_file_descriptor(char *buffer, struct thread *cur_thread, file_descriptor *file_d);
 int is_valid_fd(long *args);
 file_descriptor *get_file(int fd, struct list *fd_list);
+int handle_custom_file_write(long *args, struct list *fd_list, void *buffer, unsigned size);
+
 static struct semaphore rw_sem;
 
 /* Static list to keep global_file_descs for thread safety*/
@@ -74,26 +76,27 @@ syscall_handler(struct intr_frame *f)
     case SYS_WRITE:
         // args[2] is a pointer so we need to validate it:
         buffer = get_kernel_va_for_user_pointer((void *)args[2]);
+        int bytes_cnt;
         if (buffer == NULL)
             goto kill_process;
         cur_thread = thread_current();
-        if (args[1] == STDOUT_FILENO)
+        unsigned size = args[3];
+        switch (args[1])
         {
+        case STDIN_FILENO:
+            // file_write(stdin, buffer, size);
+            break;
+        case STDOUT_FILENO:
             putbuf((char *)buffer, args[3]);
-        }
-        else
-        {
-            unsigned size = args[3];
-            int fd = is_valid_fd((long *)args);
-            if (fd < -1)
-            {
-                success = false;
-                goto done;
-            }
+            break;
+        default:
             sema_down(&rw_sem);
-            file_descriptor *f_file = get_file(fd, &cur_thread->fd_list);
-            file_write(f_file->file, buffer, size);
+            bytes_cnt = handle_custom_file_write((long *)args, &cur_thread->fd_list, buffer, size);
             sema_up(&rw_sem);
+            if (bytes_cnt == -1)
+                success = false;
+            f->eax = bytes_cnt;
+            break;
         }
         break;
 
@@ -352,4 +355,18 @@ file_descriptor *get_file(int fd, struct list *fd_list)
             return file_d;
     }
     return NULL;
+}
+
+int handle_custom_file_write(long *args, struct list *fd_list, void *buffer, unsigned size)
+{
+    int fd = is_valid_fd(args);
+    if (fd == -1)
+        return -1;
+    file_descriptor *f_file = get_file(fd, fd_list);
+    if (f_file != NULL)
+    {
+        return file_write(f_file->file, buffer, size);
+    }
+    else
+        return -1;
 }
