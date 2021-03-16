@@ -24,6 +24,7 @@ bool create_file_descriptor(char *buffer, struct thread *cur_thread, file_descri
 int is_valid_fd(long *args);
 file_descriptor *get_file(int fd, struct list *fd_list);
 int handle_custom_file_write(long *args, struct list *fd_list, void *buffer, unsigned size);
+int handle_custom_file_read(long *args, struct list *fd_list, void *buffer, unsigned size);
 
 static struct semaphore rw_sem;
 
@@ -76,26 +77,25 @@ syscall_handler(struct intr_frame *f)
     case SYS_WRITE:
         // args[2] is a pointer so we need to validate it:
         buffer = get_kernel_va_for_user_pointer((void *)args[2]);
-        int bytes_cnt;
+        int w_bytes_cnt;
         if (buffer == NULL)
             goto kill_process;
         cur_thread = thread_current();
-        unsigned size = args[3];
+        unsigned w_size = args[3];
         switch (args[1])
         {
         case STDIN_FILENO:
-            // file_write(stdin, buffer, size);
             break;
         case STDOUT_FILENO:
             putbuf((char *)buffer, args[3]);
             break;
         default:
             sema_down(&rw_sem);
-            bytes_cnt = handle_custom_file_write((long *)args, &cur_thread->fd_list, buffer, size);
+            w_bytes_cnt = handle_custom_file_write((long *)args, &cur_thread->fd_list, buffer, w_size);
             sema_up(&rw_sem);
-            if (bytes_cnt == -1)
+            if (w_bytes_cnt == -1)
                 success = false;
-            f->eax = bytes_cnt;
+            f->eax = w_bytes_cnt;
             break;
         }
         break;
@@ -170,6 +170,28 @@ syscall_handler(struct intr_frame *f)
         break;
 
     case SYS_READ:
+        buffer = get_kernel_va_for_user_pointer((void *)args[2]);
+        int r_bytes_cnt;
+        if (buffer == NULL)
+            goto kill_process;
+        cur_thread = thread_current();
+        unsigned r_size = args[3];
+        switch (args[1])
+        {
+        case STDIN_FILENO:
+            input_getc();
+            break;
+        case STDOUT_FILENO:
+            break;
+        default:
+            sema_down(&rw_sem);
+            r_bytes_cnt = handle_custom_file_read((long *)args, &cur_thread->fd_list, buffer, r_size);
+            sema_up(&rw_sem);
+            if (r_bytes_cnt == -1)
+                success = false;
+            f->eax = r_bytes_cnt;
+            break;
+        }
         break;
 
     case SYS_TELL:
@@ -366,6 +388,20 @@ int handle_custom_file_write(long *args, struct list *fd_list, void *buffer, uns
     if (f_file != NULL)
     {
         return file_write(f_file->file, buffer, size);
+    }
+    else
+        return -1;
+}
+
+int handle_custom_file_read(long *args, struct list *fd_list, void *buffer, unsigned size)
+{
+    int fd = is_valid_fd(args);
+    if (fd == -1)
+        return -1;
+    file_descriptor *f_file = get_file(fd, fd_list);
+    if (f_file != NULL)
+    {
+        return file_read(f_file->file, buffer, size);
     }
     else
         return -1;
