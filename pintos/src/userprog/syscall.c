@@ -120,11 +120,6 @@ syscall_handler(struct intr_frame *f)
         f->eax = process_wait((tid_t)args[1]);
         break;
 
-    case SYS_CREATE:
-        break;
-
-    case SYS_REMOVE:
-        break;
 
     case SYS_OPEN:
         if ((void *)args[1] == NULL)
@@ -167,7 +162,32 @@ syscall_handler(struct intr_frame *f)
             success = false;
         break;
 
+
+    case SYS_CREATE:
+        buffer = get_kernel_va_for_user_pointer((void *)args[1]);
+        if(buffer == NULL)
+        {
+            success = false;
+            goto kill_process;
+        }
+
+        f->eax = create_file(buffer, (unsigned) args[2]);
+        break;
+
+    case SYS_REMOVE:
+        buffer = get_kernel_va_for_user_pointer((void *)args[1]);
+        if(buffer == NULL)
+        {
+            success = false;
+            goto kill_process;
+        }
+
+        f->eax = remove_file(buffer);
+        break;
+
+
     case SYS_FILESIZE:
+        f->eax = size_file((int) args[1]);
         break;
 
     case SYS_READ:
@@ -178,7 +198,7 @@ syscall_handler(struct intr_frame *f)
 
     case SYS_SEEK:
         break;
-
+        
     default:
         break;
     }

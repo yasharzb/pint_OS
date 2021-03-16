@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include "threads/synch.h"
 #include "threads/fixed-point.h"
+#include "filesys/off_t.h"
+
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -121,6 +123,7 @@ struct thread
    /* for storing file_descriptors */
    int fd_counter; // TODO initialize to 3
    struct list fd_list;
+   struct list_elem fd_elem;
 };
 
 // TODO move these in another file?
@@ -129,6 +132,8 @@ typedef struct file_descriptor
    struct file *file;
    char *file_name;
    int fd;
+   bool closed;
+   bool removed;
    struct list_elem fd_elem;
 } file_descriptor;
 
@@ -179,6 +184,10 @@ struct thread *get_thread(tid_t tid);
 struct thread *get_child_thread(tid_t child_tid);
 
 void prepare_thread_for_exit(int exit_value);
+
+bool remove_file(const char *fn);
+bool create_file(const char *name, off_t initial_size);
+int size_file(int fd);
 
 // end
 

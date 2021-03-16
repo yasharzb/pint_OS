@@ -11,6 +11,8 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "filesys/off_t.h"
+
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -61,6 +63,10 @@ bool thread_mlfqs;
 
 static void kernel_thread(thread_func *, void *aux);
 
+
+bool remove_file(const char *filename);
+bool create_file(const char *name, off_t initial_size);
+int size_file(int fd);
 static void idle(void *aux UNUSED);
 static struct thread *running_thread(void);
 static struct thread *next_thread_to_run(void);
@@ -84,6 +90,7 @@ static tid_t allocate_tid(void);
 
    It is not safe to call thread_current() until this function
    finishes. */
+
 void thread_init(void)
 {
   ASSERT(intr_get_level() == INTR_OFF);
@@ -513,6 +520,7 @@ init_thread(struct thread *t, const char *name, int priority)
   // our code
 
   list_init(&t->children_list);
+  list_init(&t->fd_list);
   // end
 
   old_level = intr_disable();
@@ -680,4 +688,53 @@ get_file_from_fd(int fd)
 {
   struct thread *cur = running_thread();
   //TODO
+}
+
+bool
+remove_file(const char *fn)
+{
+    bool successful = filesys_remove(fn);
+    if(successful){
+      struct list_elem *e;
+      for (e = list_begin(&all_list); e != list_end(&all_list);
+         e = list_next(e))
+      {
+        struct thread *t = list_entry(e, struct thread, allelem);
+        struct list_elem *el;
+        for (el = list_begin(&(t->fd_list)); el != list_end(&(t->fd_list));
+              el = list_next(el))
+        {
+          struct file_descriptor *fd = list_entry(el, struct file_descriptor, fd_elem);
+          if(strcmp(fd->file_name, fn) == 0 )
+          {
+            fd->removed = 1;
+          }
+        }
+      }
+    }
+    return successful;
+}
+
+bool
+create_file(const char *name, off_t initial_size)
+{
+  return filesys_create(name, initial_size);
+}
+
+int
+size_file(int fd)
+{
+  struct list_elem *el;
+  struct thread *t = thread_current();
+
+  for (el = list_begin(&(t->fd_list)); el != list_end(&(t->fd_list));
+       el = list_next(el))
+  {
+    struct file_descriptor *fd_tmp = list_entry(el, struct file_descriptor, fd_elem);
+    if(fd_tmp->fd == fd)
+    {
+      return (int)file_length (fd_tmp->file);
+    }
+  }
+  
 }
