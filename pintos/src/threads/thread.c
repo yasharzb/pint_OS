@@ -216,6 +216,7 @@ tid_t thread_create(const char *name, int priority,
   t->fd_counter = INITIAL_FD_COUNT;
 
   list_init(&t->children_list);
+  list_init(&t->fd_list);
   // do something with child_elem
 
   // end
@@ -669,15 +670,4 @@ struct thread *get_child_thread(tid_t child_tid)
     }
   }
   return NULL;
-}
-
-// end
-
-/* file descriptors */
-
-struct file *
-get_file_from_fd(int fd)
-{
-  struct thread *cur = running_thread();
-  //TODO
 }

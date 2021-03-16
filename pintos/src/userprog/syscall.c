@@ -22,16 +22,15 @@ void *get_kernel_va_for_user_pointer(void *ptr);
 tid_t exec(const char *file_name);
 bool create_file_descriptor(char *buffer, struct thread *cur_thread, file_descriptor *file_d);
 int is_valid_fd(long *args);
-char *find_file_name(int fd, struct list *fd_list, struct file *f_file);
-void close_all(char *file_name, struct list *fd_list);
+file_descriptor *get_file(int fd, struct list *fd_list);
+static struct semaphore rw_sem;
 
 /* Static list to keep global_file_descs for thread safety*/
-static struct list gf_list;
-
 void syscall_init(void)
 {
     intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
-    list_init(&gf_list);
+    sema_init(&rw_sem, 0);
+    sema_up(&rw_sem);
 }
 
 static void
@@ -77,24 +76,25 @@ syscall_handler(struct intr_frame *f)
         buffer = get_kernel_va_for_user_pointer((void *)args[2]);
         if (buffer == NULL)
             goto kill_process;
-
+        cur_thread = thread_current();
         if (args[1] == STDOUT_FILENO)
         {
             putbuf((char *)buffer, args[3]);
         }
-        // else
-        // {
-        //     int fd = is_valid_fd(args);
-        //     if (fd == -1)
-        //     {
-        //         success = false;
-        //         goto done;
-        //     }
-        //     cur_thread = thread_current();
-        //     struct file *f_file;
-        //     find_file_name(fd, &cur_thread->fd_list, f_file);
-        //     f_file
-        // }
+        else
+        {
+            unsigned size = args[3];
+            int fd = is_valid_fd((long *)args);
+            if (fd < -1)
+            {
+                success = false;
+                goto done;
+            }
+            sema_down(&rw_sem);
+            file_descriptor *f_file = get_file(fd, &cur_thread->fd_list);
+            file_write(f_file->file, buffer, size);
+            sema_up(&rw_sem);
+        }
         break;
 
     /* int practice (int i) */
@@ -127,12 +127,6 @@ syscall_handler(struct intr_frame *f)
         break;
 
     case SYS_OPEN:
-        if ((void *)args[1] == NULL)
-        {
-            success = false;
-            goto done;
-        }
-
         buffer = get_kernel_va_for_user_pointer((void *)args[1]);
         if (buffer == NULL)
             goto kill_process;
@@ -159,10 +153,12 @@ syscall_handler(struct intr_frame *f)
             goto done;
         }
         cur_thread = thread_current();
-        struct file *f_file;
-        char *file_name = find_file_name(fd, &cur_thread->fd_list, f_file);
-        if (file_name != NULL)
-            file_close(f_file);
+        file_descriptor *f_file = get_file(fd, &cur_thread->fd_list);
+        if (f_file != NULL)
+        {
+            file_close(f_file->file);
+            list_remove(&f_file->fd_elem);
+        }
         else
             success = false;
         break;
@@ -321,25 +317,10 @@ fail:
     return NULL;
 }
 
-// void write_perm(char *file_name, struct file *f_file)
-// {
-//     struct list_elem *e;
-//     global_file *gf;
-//     for (e = list_begin(&gf_list); e != list_end(&gf_list); e = list_next(e))
-//     {
-//         gf = list_entry(e, global_file, gf_elem);
-//         if (strcmp(gf->file_name, file_name) == 0)
-//         {
-//         }
-//     }
-// }
-
 bool create_file_descriptor(char *buffer, struct thread *cur_thread, file_descriptor *file_d)
 {
     if (file_d == NULL)
         return false;
-    if (cur_thread->fd_counter == INITIAL_FD_COUNT)
-        list_init(&cur_thread->fd_list);
     file_d->fd = cur_thread->fd_counter++;
     struct file *o_file = filesys_open(buffer);
     if (o_file == NULL)
@@ -360,7 +341,7 @@ int is_valid_fd(long *args)
     return (int)(l_fd);
 }
 
-char *find_file_name(int fd, struct list *fd_list, struct file *f_file)
+file_descriptor *get_file(int fd, struct list *fd_list)
 {
     struct list_elem *e;
     file_descriptor *file_d;
@@ -368,25 +349,7 @@ char *find_file_name(int fd, struct list *fd_list, struct file *f_file)
     {
         file_d = list_entry(e, file_descriptor, fd_elem);
         if (file_d->fd == fd)
-        {
-            f_file = file_d->file;
-            return file_d->file_name;
-        }
+            return file_d;
     }
     return NULL;
-}
-
-void close_all(char *file_name, struct list *fd_list)
-{
-    struct list_elem *e;
-    file_descriptor *file_d;
-    for (e = list_begin(fd_list); e != list_end(fd_list); e = list_next(e))
-    {
-        file_d = list_entry(e, file_descriptor, fd_elem);
-        if (strcmp(file_d->file_name, file_name) == 0)
-        {
-            list_remove(&file_d->fd_elem);
-            file_close(file_d->file);
-        }
-    }
 }
