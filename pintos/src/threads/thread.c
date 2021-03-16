@@ -11,6 +11,8 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "filesys/off_t.h"
+
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -515,6 +517,7 @@ init_thread(struct thread *t, const char *name, int priority)
   // our code
 
   list_init(&t->children_list);
+  list_init(&t->fd_list);
   // end
 
   old_level = intr_disable();
