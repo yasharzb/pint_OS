@@ -189,6 +189,7 @@ bool remove_file(const char *fn);
 bool create_file(const char *name, off_t initial_size);
 int size_file(int fd);
 void seek_file(int fd, unsigned position);
+unsigned tell_file(int fd);
 
 // end
 

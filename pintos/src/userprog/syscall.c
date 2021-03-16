@@ -194,6 +194,7 @@ syscall_handler(struct intr_frame *f)
         break;
 
     case SYS_TELL:
+        f->eax = tell_file((int) args[1]);
         break;
 
     case SYS_SEEK:
