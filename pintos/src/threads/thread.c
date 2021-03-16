@@ -743,6 +743,7 @@ size_file(int fd)
 void
 seek_file(int fd, unsigned position)
 {
+  struct list_elem *el;
   struct thread *t = thread_current();
   for (el = list_begin(&(t->fd_list)); el != list_end(&(t->fd_list));
        el = list_next(el))
