@@ -33,7 +33,7 @@ bool close_fd(int fd);
 void seek_file(int fd, unsigned position);
 unsigned tell_file(int fd);
 
-file_descriptor *create_file_descriptor(char *buffer, struct thread *cur_thread);
+file_descriptor *create_file_descriptor(char *file_name, struct thread *cur_thread);
 int fd_write(int fd, void *buffer, unsigned size);
 int fd_read(int fd, void *buffer, unsigned size);
 

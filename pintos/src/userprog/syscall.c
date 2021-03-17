@@ -12,8 +12,10 @@
 #include "userprog/exception.h"
 #include "userprog/process.h"
 #include "filesys/file-descriptor.h"
+#include "devices/input.h"
 
 static void syscall_handler(struct intr_frame *);
+
 
 /* accessing user memory */
 uint32_t *assign_args(uint32_t *esp);

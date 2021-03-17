@@ -4,7 +4,6 @@
 #include <random.h>
 #include <stdio.h>
 #include <string.h>
-#include "devices/input.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "threads/palloc.h"
@@ -18,7 +17,6 @@ void file_descriptor_init()
   lock_init(&fd_number_lock);
 }
 
-/* Returns a tid to use for a new thread. */
 static int
 allocate_fd_number(void)
 {
@@ -57,7 +55,12 @@ get_file_from_current_thread(int fd)
 
 bool remove_file(const char *file_name)
 {
-  return filesys_remove(file_name);
+  lock_acquire(&rw_lock);
+
+  bool success = filesys_remove(file_name);
+
+  lock_release(&rw_lock);
+  return success;
   // if(successful){
   //   struct list_elem *e;
   //   for (e = list_begin(&all_list); e != list_end(&all_list);
@@ -80,43 +83,57 @@ bool remove_file(const char *file_name)
 
 bool create_file(const char *name, off_t initial_size)
 {
-  return filesys_create(name, initial_size);
+  lock_acquire(&rw_lock);
+  
+  bool success = filesys_create(name, initial_size);
+
+  lock_release(&rw_lock);
+  return success;
 }
 
 bool close_fd(int fd)
 {
+  lock_acquire(&rw_lock);
+
+  bool success = false;
   fd = is_valid_fd(fd);
-  if (fd == -1)
+  if (fd != -1)
   {
-    return false;
+    file_descriptor *f_file = get_file_from_current_thread(fd);
+    if (f_file != NULL)
+    {
+      file_close(f_file->file);
+      list_remove(&f_file->fd_elem);
+      success = true;
+    }
   }
-  file_descriptor *f_file = get_file_from_current_thread(fd);
-  if (f_file != NULL)
-  {
-    file_close(f_file->file);
-    list_remove(&f_file->fd_elem);
-    return true;
-  }
-  return false;
+
+  lock_release(&rw_lock);
+  return success;
 }
 
 file_descriptor *
 create_file_descriptor(char *file_name, struct thread *cur_thread)
 {
-  file_descriptor *file_d = palloc_get_page(0);
-  if (file_d == NULL)
-    return NULL;
+  lock_acquire(&rw_lock);
+
+  file_descriptor *file_d = NULL;
 
   struct file *o_file = filesys_open(file_name);
-  if (o_file == NULL)
-    return NULL;
+  if (o_file != NULL)
+  {
+    file_d = palloc_get_page(0);
+    if (file_d != NULL)
+    {
+      file_d->fd = allocate_fd_number();
+      file_d->file_name = file_name;
+      file_d->file = o_file;
 
-  file_d->fd = allocate_fd_number();
-  file_d->file_name = file_name;
-  file_d->file = o_file;
+      list_push_back(&cur_thread->fd_list, &file_d->fd_elem);
+    }
+  }
 
-  list_push_back(&cur_thread->fd_list, &file_d->fd_elem);
-
+  lock_release(&rw_lock);
   return file_d;
 }
 
@@ -159,43 +176,39 @@ int fd_read(int fd, void *buffer, unsigned size)
 
 int size_file(int fd)
 {
+  lock_acquire(&rw_lock);
+
+  int size = -1;
   struct file_descriptor *fd_tmp = get_file_from_current_thread(fd);
   if (fd_tmp)
-    return (int)file_length(fd_tmp->file);
-  return -1;
+    size = (int)file_length(fd_tmp->file);
+
+  lock_release(&rw_lock);
+  return size;
 }
 
 void seek_file(int fd, unsigned position)
 {
-  struct list_elem *el;
-  struct thread *t = thread_current();
-  for (el = list_begin(&(t->fd_list)); el != list_end(&(t->fd_list));
-       el = list_next(el))
-  {
-    struct file_descriptor *fd_tmp = list_entry(el, struct file_descriptor, fd_elem);
-    if (fd_tmp->fd == fd)
-    {
-      file_seek(fd_tmp->file, position);
-      return;
-    }
-  }
+  lock_acquire(&rw_lock);
+
+  struct file_descriptor *fd_tmp = get_file_from_current_thread(fd);
+  if (fd_tmp)
+    file_seek(fd_tmp->file, position);
+
+  lock_release(&rw_lock);
   return;
 }
 
 unsigned
 tell_file(int fd)
 {
-  struct list_elem *el;
-  struct thread *t = thread_current();
-  for (el = list_begin(&(t->fd_list)); el != list_end(&(t->fd_list));
-       el = list_next(el))
-  {
-    struct file_descriptor *fd_tmp = list_entry(el, struct file_descriptor, fd_elem);
-    if (fd_tmp->fd == fd)
-    {
-      return file_tell(fd_tmp->file);
-    }
-  }
-  //this fd doesn't exist
-  return -1;
+  lock_acquire(&rw_lock);
+
+  int tell = -1;
+  struct file_descriptor *fd_tmp = get_file_from_current_thread(fd);
+  if (fd_tmp)
+    tell = file_tell(fd_tmp->file);
+
+  lock_release(&rw_lock);
+  return tell;
 }
