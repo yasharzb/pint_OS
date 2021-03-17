@@ -7,12 +7,28 @@
 #include "devices/input.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
+#include "threads/palloc.h"
 
 static struct lock rw_lock;
+static struct lock fd_number_lock;
 
 void file_descriptor_init()
 {
   lock_init(&rw_lock);
+  lock_init(&fd_number_lock);
+}
+
+/* Returns a tid to use for a new thread. */
+static int
+allocate_fd_number(void)
+{
+  int fd;
+
+  lock_acquire(&fd_number_lock);
+  fd = thread_current()->fd_counter++;
+  lock_release(&fd_number_lock);
+
+  return fd;
 }
 
 int is_valid_fd(int fd)
@@ -84,18 +100,24 @@ bool close_fd(int fd)
   return false;
 }
 
-bool create_file_descriptor(char *buffer, struct thread *cur_thread, file_descriptor *file_d)
+file_descriptor *
+create_file_descriptor(char *file_name, struct thread *cur_thread)
 {
+  file_descriptor *file_d = palloc_get_page(0);
   if (file_d == NULL)
-    return false;
-  file_d->fd = cur_thread->fd_counter++;
-  struct file *o_file = filesys_open(buffer);
+    return NULL;
+  
+  struct file *o_file = filesys_open(file_name);
   if (o_file == NULL)
-    return false;
-  file_d->file_name = buffer;
+    return NULL;
+    
+  file_d->fd = allocate_fd_number();
+  file_d->file_name = file_name;
   file_d->file = o_file;
+
   list_push_back(&cur_thread->fd_list, &file_d->fd_elem);
-  return true;
+
+  return file_d;
 }
 
 int fd_write(int fd, void *buffer, unsigned size)
@@ -153,19 +175,15 @@ int fd_read(int fd, void *buffer, unsigned size)
   return read_bytes_cnt;
 }
 
-
-
 int size_file(int fd)
 {
   struct file_descriptor *fd_tmp = get_file_from_current_thread(fd);
-  if(fd_tmp)
+  if (fd_tmp)
     return (int)file_length(fd_tmp->file);
   return -1;
 }
 
-
-void
-seek_file(int fd, unsigned position)
+void seek_file(int fd, unsigned position)
 {
   struct list_elem *el;
   struct thread *t = thread_current();
@@ -173,7 +191,7 @@ seek_file(int fd, unsigned position)
        el = list_next(el))
   {
     struct file_descriptor *fd_tmp = list_entry(el, struct file_descriptor, fd_elem);
-    if(fd_tmp->fd == fd)
+    if (fd_tmp->fd == fd)
     {
       file_seek(fd_tmp->file, position);
       return;
@@ -191,10 +209,9 @@ tell_file(int fd)
        el = list_next(el))
   {
     struct file_descriptor *fd_tmp = list_entry(el, struct file_descriptor, fd_elem);
-    if(fd_tmp->fd == fd)
+    if (fd_tmp->fd == fd)
     {
       return file_tell(fd_tmp->file);
-      
     }
   }
   //this fd doesn't exist

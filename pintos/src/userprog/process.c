@@ -307,12 +307,17 @@ bool load(const char *cmdline, void (**eip)(void), void **esp)
     // end
 
     /* Open executable file. */
-    file = filesys_open(file_name);
-    if (file == NULL)
+    file_descriptor *file_d = create_file_descriptor(file_name, t);
+    if (file_d == NULL)
     {
         printf("load: %s: open failed\n", file_name);
         goto done;
     }
+   
+    file = file_d->file;
+   
+    // deny write to executable
+    file_deny_write(file);
 
     /* Read and verify executable header. */
     if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr || memcmp(ehdr.e_ident, "\177ELF\1\1\1", 7) || ehdr.e_type != 2 || ehdr.e_machine != 3 || ehdr.e_version != 1 || ehdr.e_phentsize != sizeof(struct Elf32_Phdr) || ehdr.e_phnum > 1024)
@@ -392,7 +397,9 @@ bool load(const char *cmdline, void (**eip)(void), void **esp)
     *eip = (void (*)(void))ehdr.e_entry;
 
     success = true;
+
 done:
+    /* We arrive here whether the load is successful or not. */
 
     // our code
     palloc_free_page(commands);
@@ -400,8 +407,7 @@ done:
 
     // end
 
-    /* We arrive here whether the load is successful or not. */
-    file_close(file);
+    // file_close(file);
     return success;
 }
 
@@ -552,8 +558,7 @@ install_page(void *upage, void *kpage, bool writable)
     return (pagedir_get_page(t->pagedir, upage) == NULL && pagedir_set_page(t->pagedir, upage, kpage, writable));
 }
 
-bool
-alternative_setup_stack(int argc, char **argv, void **esp)
+bool alternative_setup_stack(int argc, char **argv, void **esp)
 {
     uint8_t *kpage;
     kpage = palloc_get_page(PAL_USER | PAL_ZERO);
@@ -593,10 +598,9 @@ alternative_setup_stack(int argc, char **argv, void **esp)
         + 4 * 2                       // argc and argv pointer
         + 4;                          // fake return address
 
-
     // stack must be 16 aligned before return address
     uint32_t align_count_before_args = (16 - (total_stack_length - 4) % 16) % 16;
-    
+
     total_stack_length += align_count_before_args;
     if (total_stack_length >= PGSIZE)
     {
@@ -646,5 +650,3 @@ done:
 
     return success;
 }
-
-

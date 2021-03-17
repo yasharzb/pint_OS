@@ -97,8 +97,8 @@ syscall_handler(struct intr_frame *f)
         if (buffer == NULL)
             goto kill_process;
         cur_thread = thread_current();
-        file_descriptor *file_d = palloc_get_page(0);
-        if (!create_file_descriptor((char *)buffer, cur_thread, file_d))
+        file_descriptor *file_d = create_file_descriptor((char *)buffer, cur_thread);
+        if (file_d == NULL)
         {
             success = false;
             goto done;

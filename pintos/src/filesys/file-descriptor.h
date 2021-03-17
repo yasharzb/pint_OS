@@ -22,7 +22,6 @@ typedef struct file_descriptor
    struct list_elem fd_elem;
 } file_descriptor;
 
-
 void file_descriptor_init(void);
 
 file_descriptor *get_file_from_current_thread(int fd);
@@ -34,7 +33,7 @@ bool close_fd(int fd);
 void seek_file(int fd, unsigned position);
 unsigned tell_file(int fd);
 
-bool create_file_descriptor(char *buffer, struct thread *cur_thread, file_descriptor *file_d);
+file_descriptor *create_file_descriptor(char *buffer, struct thread *cur_thread);
 int fd_write(int fd, void *buffer, unsigned size);
 int fd_read(int fd, void *buffer, unsigned size);
 
