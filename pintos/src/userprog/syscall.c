@@ -9,17 +9,23 @@
 #include "threads/vaddr.h"
 #include "pagedir.h"
 #include "threads/palloc.h"
-
 #include "userprog/exception.h"
 #include "userprog/process.h"
+#include "filesys/file-descriptor.h"
 
 #define MAX_FD 1025
 
 static void syscall_handler(struct intr_frame *);
+
+/* accessing user memory */
 uint32_t *assign_args(uint32_t *esp);
 void *copy_user_mem_to_kernel(void *src, int size, bool null_terminated);
 void *get_kernel_va_for_user_pointer(void *ptr);
+
+/**** process control syscalls ****/
 tid_t exec(const char *file_name);
+
+/**** file operation syscalls ****/
 bool create_file_descriptor(char *buffer, struct thread *cur_thread, file_descriptor *file_d);
 int is_valid_fd(long *args);
 file_descriptor *get_file(int fd, struct list *fd_list);
@@ -123,7 +129,6 @@ syscall_handler(struct intr_frame *f)
         f->eax = process_wait((tid_t)args[1]);
         break;
 
-
     case SYS_OPEN:
         buffer = get_kernel_va_for_user_pointer((void *)args[1]);
         if (buffer == NULL)
@@ -161,21 +166,19 @@ syscall_handler(struct intr_frame *f)
             success = false;
         break;
 
-
     case SYS_CREATE:
         buffer = get_kernel_va_for_user_pointer((void *)args[1]);
-        if(buffer == NULL)
+        if (buffer == NULL)
         {
             success = false;
             goto kill_process;
         }
-
-        f->eax = create_file(buffer, (unsigned) args[2]);
+        f->eax = filesys_create(buffer, (unsigned)args[2]);
         break;
 
     case SYS_REMOVE:
         buffer = get_kernel_va_for_user_pointer((void *)args[1]);
-        if(buffer == NULL)
+        if (buffer == NULL)
         {
             success = false;
             goto kill_process;
@@ -184,9 +187,8 @@ syscall_handler(struct intr_frame *f)
         f->eax = remove_file(buffer);
         break;
 
-
     case SYS_FILESIZE:
-        f->eax = size_file((int) args[1]);
+        f->eax = size_file((int)args[1]);
         break;
 
     case SYS_READ:
@@ -219,7 +221,7 @@ syscall_handler(struct intr_frame *f)
 
     case SYS_SEEK:
         break;
-        
+
     default:
         break;
     }
@@ -240,7 +242,7 @@ kill_process:
     thread_exit();
 }
 
-/**** exec syscall ****/
+/**** process control syscalls ****/
 
 tid_t exec(const char *file_name)
 {
@@ -262,6 +264,73 @@ tid_t exec(const char *file_name)
 
 done:
     return child_tid;
+}
+
+/**** file operation syscalls ****/
+
+bool create_file_descriptor(char *buffer, struct thread *cur_thread, file_descriptor *file_d)
+{
+    if (file_d == NULL)
+        return false;
+    file_d->fd = cur_thread->fd_counter++;
+    struct file *o_file = filesys_open(buffer);
+    if (o_file == NULL)
+        return false;
+    file_d->file_name = buffer;
+    file_d->file = o_file;
+    list_push_back(&cur_thread->fd_list, &file_d->fd_elem);
+    return true;
+}
+
+int is_valid_fd(long *args)
+{
+    long l_fd = args[1];
+    if (l_fd > MAX_FD)
+        return -1;
+    if (l_fd < INITIAL_FD_COUNT)
+        return -1;
+    return (int)(l_fd);
+}
+
+file_descriptor *get_file(int fd, struct list *fd_list)
+{
+    struct list_elem *e;
+    file_descriptor *file_d;
+    for (e = list_begin(fd_list); e != list_end(fd_list); e = list_next(e))
+    {
+        file_d = list_entry(e, file_descriptor, fd_elem);
+        if (file_d->fd == fd)
+            return file_d;
+    }
+    return NULL;
+}
+
+int handle_custom_file_write(long *args, struct list *fd_list, void *buffer, unsigned size)
+{
+    int fd = is_valid_fd(args);
+    if (fd == -1)
+        return -1;
+    file_descriptor *f_file = get_file(fd, fd_list);
+    if (f_file != NULL)
+    {
+        return file_write(f_file->file, buffer, size);
+    }
+    else
+        return -1;
+}
+
+int handle_custom_file_read(long *args, struct list *fd_list, void *buffer, unsigned size)
+{
+    int fd = is_valid_fd(args);
+    if (fd == -1)
+        return -1;
+    file_descriptor *f_file = get_file(fd, fd_list);
+    if (f_file != NULL)
+    {
+        return file_read(f_file->file, buffer, size);
+    }
+    else
+        return -1;
 }
 
 /**** accessing user memory ****/
@@ -355,74 +424,8 @@ copy_user_mem_to_kernel(void *src, int size, bool null_terminated)
 
     return buffer;
 
-    // end
 fail:
     if (buffer)
         palloc_free_page(buffer);
     return NULL;
-}
-
-bool create_file_descriptor(char *buffer, struct thread *cur_thread, file_descriptor *file_d)
-{
-    if (file_d == NULL)
-        return false;
-    file_d->fd = cur_thread->fd_counter++;
-    struct file *o_file = filesys_open(buffer);
-    if (o_file == NULL)
-        return false;
-    file_d->file_name = buffer;
-    file_d->file = o_file;
-    list_push_back(&cur_thread->fd_list, &file_d->fd_elem);
-    return true;
-}
-
-int is_valid_fd(long *args)
-{
-    long l_fd = args[1];
-    if (l_fd > MAX_FD)
-        return -1;
-    if (l_fd < INITIAL_FD_COUNT)
-        return -1;
-    return (int)(l_fd);
-}
-
-file_descriptor *get_file(int fd, struct list *fd_list)
-{
-    struct list_elem *e;
-    file_descriptor *file_d;
-    for (e = list_begin(fd_list); e != list_end(fd_list); e = list_next(e))
-    {
-        file_d = list_entry(e, file_descriptor, fd_elem);
-        if (file_d->fd == fd)
-            return file_d;
-    }
-    return NULL;
-}
-
-int handle_custom_file_write(long *args, struct list *fd_list, void *buffer, unsigned size)
-{
-    int fd = is_valid_fd(args);
-    if (fd == -1)
-        return -1;
-    file_descriptor *f_file = get_file(fd, fd_list);
-    if (f_file != NULL)
-    {
-        return file_write(f_file->file, buffer, size);
-    }
-    else
-        return -1;
-}
-
-int handle_custom_file_read(long *args, struct list *fd_list, void *buffer, unsigned size)
-{
-    int fd = is_valid_fd(args);
-    if (fd == -1)
-        return -1;
-    file_descriptor *f_file = get_file(fd, fd_list);
-    if (f_file != NULL)
-    {
-        return file_read(f_file->file, buffer, size);
-    }
-    else
-        return -1;
 }

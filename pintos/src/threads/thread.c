@@ -62,11 +62,6 @@ static unsigned thread_ticks; /* # of timer ticks since last yield. */
 bool thread_mlfqs;
 
 static void kernel_thread(thread_func *, void *aux);
-
-
-bool remove_file(const char *filename);
-bool create_file(const char *name, off_t initial_size);
-int size_file(int fd);
 static void idle(void *aux UNUSED);
 static struct thread *running_thread(void);
 static struct thread *next_thread_to_run(void);
@@ -200,6 +195,7 @@ tid_t thread_create(const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+
   // our code
 
   /* set parent */
@@ -222,11 +218,8 @@ tid_t thread_create(const char *name, int priority,
   //Set minimum fd to 2
   t->fd_counter = INITIAL_FD_COUNT;
 
-  list_init(&t->children_list);
-  list_init(&t->fd_list);
-  // do something with child_elem
-
   // end
+
 
   /* Add to run queue. */
   thread_unblock(t);
@@ -519,7 +512,6 @@ init_thread(struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
   // our code
-
   list_init(&t->children_list);
   list_init(&t->fd_list);
   // end
@@ -682,60 +674,3 @@ struct thread *get_child_thread(tid_t child_tid)
 
 // end
 
-/* file descriptors */
-
-struct file *
-get_file_from_fd(int fd)
-{
-  struct thread *cur = running_thread();
-  //TODO
-}
-
-bool
-remove_file(const char *fn)
-{
-    bool successful = filesys_remove(fn);
-    if(successful){
-      struct list_elem *e;
-      for (e = list_begin(&all_list); e != list_end(&all_list);
-         e = list_next(e))
-      {
-        struct thread *t = list_entry(e, struct thread, allelem);
-        struct list_elem *el;
-        for (el = list_begin(&(t->fd_list)); el != list_end(&(t->fd_list));
-              el = list_next(el))
-        {
-          struct file_descriptor *fd = list_entry(el, struct file_descriptor, fd_elem);
-          if(strcmp(fd->file_name, fn) == 0 )
-          {
-            fd->removed = 1;
-          }
-        }
-      }
-    }
-    return successful;
-}
-
-bool
-create_file(const char *name, off_t initial_size)
-{
-  return filesys_create(name, initial_size);
-}
-
-int
-size_file(int fd)
-{
-  struct list_elem *el;
-  struct thread *t = thread_current();
-
-  for (el = list_begin(&(t->fd_list)); el != list_end(&(t->fd_list));
-       el = list_next(el))
-  {
-    struct file_descriptor *fd_tmp = list_entry(el, struct file_descriptor, fd_elem);
-    if(fd_tmp->fd == fd)
-    {
-      return (int)file_length (fd_tmp->file);
-    }
-  }
-  
-}

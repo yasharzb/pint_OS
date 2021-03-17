@@ -8,7 +8,6 @@
 #include "threads/fixed-point.h"
 #include "filesys/off_t.h"
 
-
 /* States in a thread's life cycle. */
 enum thread_status
 {
@@ -126,18 +125,6 @@ struct thread
    struct list_elem fd_elem;
 };
 
-// TODO move these in another file?
-typedef struct file_descriptor
-{
-   struct file *file;
-   char *file_name;
-   int fd;
-   bool closed;
-   bool removed;
-   struct list_elem fd_elem;
-} file_descriptor;
-
-struct file *get_file_from_fd(int fd);
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -175,20 +162,11 @@ void thread_set_nice(int);
 int thread_get_recent_cpu(void);
 int thread_get_load_avg(void);
 
-// our code
 
 struct thread *my_thread_create(const char *name, int priority,
                                 thread_func *function, void *aux);
-
 struct thread *get_thread(tid_t tid);
 struct thread *get_child_thread(tid_t child_tid);
-
 void prepare_thread_for_exit(int exit_value);
-
-bool remove_file(const char *fn);
-bool create_file(const char *name, off_t initial_size);
-int size_file(int fd);
-
-// end
 
 #endif /* threads/thread.h */
