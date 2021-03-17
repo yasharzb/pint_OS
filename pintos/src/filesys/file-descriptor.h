@@ -6,6 +6,10 @@
 #include <stdint.h>
 #include "filesys/off_t.h"
 #include "threads/thread.h"
+#include "filesys/file.h"
+#include "filesys/filesys.h"
+
+#define MAX_FD 1025
 
 typedef struct file_descriptor
 {
@@ -19,8 +23,17 @@ typedef struct file_descriptor
 } file_descriptor;
 
 
+void file_descriptor_init(void);
+
+file_descriptor *get_file_from_current_thread(int fd);
+int is_valid_fd(int fd);
 bool remove_file(const char *fn);
 bool create_file(const char *name, off_t initial_size);
 int size_file(int fd);
+bool close_fd(int fd);
+
+bool create_file_descriptor(char *buffer, struct thread *cur_thread, file_descriptor *file_d);
+int fd_write(int fd, void *buffer, unsigned size);
+int fd_read(int fd, void *buffer, unsigned size);
 
 #endif /* filesys/file-descriptor.h */

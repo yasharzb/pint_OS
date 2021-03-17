@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include "threads/synch.h"
 #include "threads/fixed-point.h"
-#include "filesys/off_t.h"
+#include "filesys/file-descriptor.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -120,9 +120,8 @@ struct thread
    struct semaphore load_done; /* semaphore to know if executable has finished loading in exec */
 
    /* for storing file_descriptors */
-   int fd_counter; // TODO initialize to 3
+   int fd_counter; 
    struct list fd_list;
-   struct list_elem fd_elem;
 };
 
 

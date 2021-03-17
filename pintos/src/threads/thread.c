@@ -11,7 +11,8 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
-#include "filesys/off_t.h"
+#include "filesys/file-descriptor.h"
+
 
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -324,6 +325,15 @@ void thread_exit(void)
     struct thread *t = list_entry(e, struct thread, child_elem);
     sema_up(&t->can_free);
   }
+
+  /* close fds */
+  for (e = list_begin(&cur->fd_list); e != list_end(&cur->fd_list);
+       e = list_next(e))
+  {
+    struct file_descriptor *f = list_entry(e, struct file_descriptor, fd_elem);
+    close_fd(f->fd);
+  }
+
 
 #ifdef USERPROG
   process_exit();
