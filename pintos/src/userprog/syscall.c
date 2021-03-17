@@ -23,6 +23,8 @@ void *copy_user_mem_to_kernel(void *src, int size, bool null_terminated);
 void *get_kernel_va_for_user_pointer(void *ptr);
 
 /**** process control syscalls ****/
+bool validate_user_pointer(void *ptr, int size);
+
 tid_t exec(const char *file_name);
 
 /**** file operation syscalls ****/
@@ -32,14 +34,13 @@ file_descriptor *get_file(int fd, struct list *fd_list);
 int handle_custom_file_write(long *args, struct list *fd_list, void *buffer, unsigned size);
 int handle_custom_file_read(long *args, struct list *fd_list, void *buffer, unsigned size);
 
-static struct semaphore rw_sem;
+static struct lock rw_lock;
 
 /* Static list to keep global_file_descs for thread safety*/
 void syscall_init(void)
 {
     intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
-    sema_init(&rw_sem, 0);
-    sema_up(&rw_sem);
+    lock_init(&rw_lock);
 }
 
 static void
@@ -96,9 +97,9 @@ syscall_handler(struct intr_frame *f)
             putbuf((char *)buffer, args[3]);
             break;
         default:
-            sema_down(&rw_sem);
+            lock_acquire(&rw_lock);
             w_bytes_cnt = handle_custom_file_write((long *)args, &cur_thread->fd_list, buffer, w_size);
-            sema_up(&rw_sem);
+            lock_release(&rw_lock);
             if (w_bytes_cnt == -1)
                 success = false;
             f->eax = w_bytes_cnt;
@@ -173,7 +174,8 @@ syscall_handler(struct intr_frame *f)
             success = false;
             goto kill_process;
         }
-        f->eax = filesys_create(buffer, (unsigned)args[2]);
+
+        f->eax = create_file(buffer, (unsigned)args[2]);
         break;
 
     case SYS_REMOVE:
@@ -191,13 +193,14 @@ syscall_handler(struct intr_frame *f)
         f->eax = size_file((int)args[1]);
         break;
 
-    case SYS_READ:
-        buffer = get_kernel_va_for_user_pointer((void *)args[2]);
-        int r_bytes_cnt;
-        if (buffer == NULL)
+    case SYS_READ:;
+        unsigned read_size = args[3];
+
+        if (!validate_user_pointer((void *)args[2], read_size))
             goto kill_process;
+
+        int read_bytes_cnt;
         cur_thread = thread_current();
-        unsigned r_size = args[3];
         switch (args[1])
         {
         case STDIN_FILENO:
@@ -206,12 +209,11 @@ syscall_handler(struct intr_frame *f)
         case STDOUT_FILENO:
             break;
         default:
-            sema_down(&rw_sem);
-            r_bytes_cnt = handle_custom_file_read((long *)args, &cur_thread->fd_list, buffer, r_size);
-            sema_up(&rw_sem);
-            if (r_bytes_cnt == -1)
-                success = false;
-            f->eax = r_bytes_cnt;
+            lock_acquire(&rw_lock);
+            read_bytes_cnt = handle_custom_file_read((long *)args, &cur_thread->fd_list, args[2], read_size);
+            lock_release(&rw_lock);
+
+            f->eax = read_bytes_cnt;
             break;
         }
         break;
@@ -365,6 +367,37 @@ get_kernel_va_for_user_pointer(void *ptr)
     /* set last byte in page to zero so kernel don't die in case of not valid string */
     buffer[MAX_SYSCALK_ARG_LENGTH] = 0;
     return (void *)buffer;
+}
+
+/* will check if memory from ptr to ptr+size is valid user memory */
+bool 
+validate_user_pointer(void *ptr, int size)
+{
+    if (ptr == NULL || !is_user_vaddr(ptr))
+        return false;
+
+    char *current_address = ptr;
+    int seen_size = 0;
+    while (seen_size < size)
+    {
+        if (!is_user_vaddr(current_address))
+            return false;
+
+        /* size remaining in this page */
+        int cur_size = (uintptr_t)pg_round_up((void *)current_address) - (uintptr_t)current_address + 1;
+        if (size - seen_size < cur_size)
+            cur_size = size - seen_size;
+
+        /* get kernel virtual address corresponding to currrent address */
+        char *kernel_address = pagedir_get_page(thread_current()->pagedir, (void *)current_address);
+        if (kernel_address == NULL)
+            return false;
+
+        seen_size += cur_size;
+        current_address += cur_size;
+    }
+
+    return true;
 }
 
 /* copy from src in user virtual address to dst in kernel virtual
