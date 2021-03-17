@@ -106,11 +106,11 @@ create_file_descriptor(char *file_name, struct thread *cur_thread)
   file_descriptor *file_d = palloc_get_page(0);
   if (file_d == NULL)
     return NULL;
-  
+
   struct file *o_file = filesys_open(file_name);
   if (o_file == NULL)
     return NULL;
-    
+
   file_d->fd = allocate_fd_number();
   file_d->file_name = file_name;
   file_d->file = o_file;
@@ -125,23 +125,13 @@ int fd_write(int fd, void *buffer, unsigned size)
   lock_acquire(&rw_lock);
 
   int w_bytes_cnt = -1;
-  switch (fd)
+
+  fd = is_valid_fd(fd);
+  if (fd != -1)
   {
-  case STDIN_FILENO:
-    break;
-  case STDOUT_FILENO:
-    putbuf((char *)buffer, size);
-    w_bytes_cnt = 0;
-    break;
-  default:
-    fd = is_valid_fd(fd);
-    if (fd != -1)
-    {
-      file_descriptor *f_file = get_file_from_current_thread(fd);
-      if (f_file != NULL)
-        w_bytes_cnt = file_write(f_file->file, buffer, size);
-    }
-    break;
+    file_descriptor *f_file = get_file_from_current_thread(fd);
+    if (f_file != NULL)
+      w_bytes_cnt = file_write(f_file->file, buffer, size);
   }
 
   lock_release(&rw_lock);
@@ -153,24 +143,16 @@ int fd_read(int fd, void *buffer, unsigned size)
   lock_acquire(&rw_lock);
 
   int read_bytes_cnt = -1;
-  switch (fd)
-  {
-  case STDIN_FILENO:
-    read_bytes_cnt = input_getc();
-    break;
-  case STDOUT_FILENO:
-    break;
-  default:
-    fd = is_valid_fd(fd);
-    if (fd != -1)
-    {
-      file_descriptor *f_file = get_file_from_current_thread(fd);
-      if (f_file != NULL)
 
-        read_bytes_cnt = file_read(f_file->file, buffer, size);
-    }
-    break;
+  fd = is_valid_fd(fd);
+  if (fd != -1)
+  {
+    file_descriptor *f_file = get_file_from_current_thread(fd);
+    if (f_file != NULL)
+
+      read_bytes_cnt = file_read(f_file->file, buffer, size);
   }
+
   lock_release(&rw_lock);
   return read_bytes_cnt;
 }

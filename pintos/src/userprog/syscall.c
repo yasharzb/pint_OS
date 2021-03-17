@@ -144,7 +144,20 @@ syscall_handler(struct intr_frame *f)
         if (buffer == NULL)
             goto kill_process;
 
-        int w_bytes_cnt = fd_write(args[1], buffer, args[3]);
+        int w_bytes_cnt = -1;
+        unsigned w_size = args[3];
+        switch (args[1])
+        {
+        case STDIN_FILENO:
+            break;
+        case STDOUT_FILENO:
+            putbuf((char *)buffer, w_size);
+            w_bytes_cnt = 0;
+            break;
+        default:
+            w_bytes_cnt = fd_write(args[1], buffer, w_size);
+            break;
+        }
         f->eax = w_bytes_cnt;
         break;
 
@@ -154,13 +167,23 @@ syscall_handler(struct intr_frame *f)
         if (!validate_user_pointer((void *)args[2], read_size))
             goto kill_process;
 
-        int read_bytes_cnt = fd_read(args[1], (void *)args[2], read_size);
+        int read_bytes_cnt = -1;
+        switch (args[1])
+        {
+        case STDIN_FILENO:
+            read_bytes_cnt = input_getc();
+            break;
+        case STDOUT_FILENO:
+            break;
+        default:
+            read_bytes_cnt = fd_read(args[1], (void *)args[2], read_size);
+            break;
+        }
         f->eax = read_bytes_cnt;
-
         break;
 
     case SYS_TELL:
-        f->eax = tell_file((int) args[1]);
+        f->eax = tell_file((int)args[1]);
         break;
 
     case SYS_SEEK:
