@@ -67,12 +67,6 @@ bool create_file(const char *name, off_t initial_size)
   return filesys_create(name, initial_size);
 }
 
-int size_file(int fd)
-{
-  struct file_descriptor *fd_tmp = get_file_from_current_thread(fd);
-  return (int)file_length(fd_tmp->file);
-}
-
 bool close_fd(int fd)
 {
   fd = is_valid_fd(fd);
@@ -157,4 +151,52 @@ int fd_read(int fd, void *buffer, unsigned size)
   }
   lock_release(&rw_lock);
   return read_bytes_cnt;
+}
+
+
+
+int size_file(int fd)
+{
+  struct file_descriptor *fd_tmp = get_file_from_current_thread(fd);
+  if(fd_tmp)
+    return (int)file_length(fd_tmp->file);
+  return -1;
+}
+
+
+void
+seek_file(int fd, unsigned position)
+{
+  struct list_elem *el;
+  struct thread *t = thread_current();
+  for (el = list_begin(&(t->fd_list)); el != list_end(&(t->fd_list));
+       el = list_next(el))
+  {
+    struct file_descriptor *fd_tmp = list_entry(el, struct file_descriptor, fd_elem);
+    if(fd_tmp->fd == fd)
+    {
+      file_seek(fd_tmp->file, position);
+      return;
+    }
+  }
+  return;
+}
+
+unsigned
+tell_file(int fd)
+{
+  struct list_elem *el;
+  struct thread *t = thread_current();
+  for (el = list_begin(&(t->fd_list)); el != list_end(&(t->fd_list));
+       el = list_next(el))
+  {
+    struct file_descriptor *fd_tmp = list_entry(el, struct file_descriptor, fd_elem);
+    if(fd_tmp->fd == fd)
+    {
+      return file_tell(fd_tmp->file);
+      
+    }
+  }
+  //this fd doesn't exist
+  return -1;
 }

@@ -31,6 +31,8 @@ bool remove_file(const char *fn);
 bool create_file(const char *name, off_t initial_size);
 int size_file(int fd);
 bool close_fd(int fd);
+void seek_file(int fd, unsigned position);
+unsigned tell_file(int fd);
 
 bool create_file_descriptor(char *buffer, struct thread *cur_thread, file_descriptor *file_d);
 int fd_write(int fd, void *buffer, unsigned size);
