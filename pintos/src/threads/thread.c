@@ -67,6 +67,8 @@ static void kernel_thread(thread_func *, void *aux);
 bool remove_file(const char *filename);
 bool create_file(const char *name, off_t initial_size);
 int size_file(int fd);
+void seek_file(int fd, unsigned position);
+unsigned tell_file(int fd);
 static void idle(void *aux UNUSED);
 static struct thread *running_thread(void);
 static struct thread *next_thread_to_run(void);
@@ -738,4 +740,41 @@ size_file(int fd)
     }
   }
   
+}
+
+void
+seek_file(int fd, unsigned position)
+{
+  struct list_elem *el;
+  struct thread *t = thread_current();
+  for (el = list_begin(&(t->fd_list)); el != list_end(&(t->fd_list));
+       el = list_next(el))
+  {
+    struct file_descriptor *fd_tmp = list_entry(el, struct file_descriptor, fd_elem);
+    if(fd_tmp->fd == fd)
+    {
+      file_seek(fd_tmp->file, position);
+      return;
+    }
+  }
+  return;
+}
+
+unsigned
+tell_file(int fd)
+{
+  struct list_elem *el;
+  struct thread *t = thread_current();
+  for (el = list_begin(&(t->fd_list)); el != list_end(&(t->fd_list));
+       el = list_next(el))
+  {
+    struct file_descriptor *fd_tmp = list_entry(el, struct file_descriptor, fd_elem);
+    if(fd_tmp->fd == fd)
+    {
+      return file_tell(fd_tmp->file);
+      
+    }
+  }
+  //this fd doesn't exist
+  return -1;
 }
