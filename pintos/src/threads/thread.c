@@ -652,8 +652,6 @@ struct thread *get_thread(tid_t tid)
 {
   struct list_elem *e;
 
-  // ASSERT (intr_get_level () == INTR_OFF);
-
   for (e = list_begin(&all_list); e != list_end(&all_list);
        e = list_next(e))
   {
@@ -672,8 +670,6 @@ struct thread *get_child_thread(tid_t child_tid)
 
   struct list_elem *e;
 
-  // ASSERT (intr_get_level () == INTR_OFF);
-
   for (e = list_begin(&parent_thread->children_list); e != list_end(&parent_thread->children_list);
        e = list_next(e))
   {
@@ -686,4 +682,3 @@ struct thread *get_child_thread(tid_t child_tid)
   return NULL;
 }
 
-// end
