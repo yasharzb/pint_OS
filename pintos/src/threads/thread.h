@@ -119,11 +119,12 @@ struct thread
    bool load_success_status;   /* status of loading of executable file */
    struct semaphore load_done; /* semaphore to know if executable has finished loading in exec */
 
+   struct file *executable_file; /* thread executable file */
+
    /* for storing file_descriptors */
-   int fd_counter; 
+   int fd_counter;
    struct list fd_list;
 };
-
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -160,7 +161,6 @@ int thread_get_nice(void);
 void thread_set_nice(int);
 int thread_get_recent_cpu(void);
 int thread_get_load_avg(void);
-
 
 struct thread *get_thread(tid_t tid);
 struct thread *get_child_thread(tid_t child_tid);

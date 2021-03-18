@@ -297,18 +297,20 @@ bool load(const char *cmdline, void (**eip)(void), void **esp)
     }
 
     /* Open executable file. */
-    file_descriptor *file_d = create_file_descriptor(file_name, t);
-    if (file_d == NULL)
+    file = filesys_open(file_name);
+    if (file == NULL)
     {
         printf("load: %s: open failed\n", file_name);
         goto done;
     }
 
-    file = file_d->file;
-
-    // deny write to executable
+    /* deny write to executable */
     file_deny_write(file);
-
+    
+    /* add file to thread so we can close it at the end of thread */
+    t->executable_file = file;
+    
+    
     /* Read and verify executable header. */
     if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr 
     || memcmp(ehdr.e_ident, "\177ELF\1\1\1", 7) 

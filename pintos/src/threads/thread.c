@@ -326,6 +326,10 @@ void thread_exit(void)
     palloc_free_page(f);
   }
 
+  /* close executable file */
+  if(cur->executable_file)
+    file_close(cur->executable_file);
+
   /* sema up `exited` to let the parent know that the thread has exited */
   sema_up(&cur->exited);
 

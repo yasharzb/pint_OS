@@ -13,7 +13,6 @@
 
 typedef struct file_descriptor
 {
-
    struct file *file;
    char *file_name;
    int fd;
