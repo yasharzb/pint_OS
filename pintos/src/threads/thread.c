@@ -11,6 +11,8 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "filesys/file-descriptor.h"
+
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -60,7 +62,6 @@ static unsigned thread_ticks; /* # of timer ticks since last yield. */
 bool thread_mlfqs;
 
 static void kernel_thread(thread_func *, void *aux);
-
 static void idle(void *aux UNUSED);
 static struct thread *running_thread(void);
 static struct thread *next_thread_to_run(void);
@@ -84,6 +85,7 @@ static tid_t allocate_tid(void);
 
    It is not safe to call thread_current() until this function
    finishes. */
+
 void thread_init(void)
 {
   ASSERT(intr_get_level() == INTR_OFF);
@@ -193,7 +195,8 @@ tid_t thread_create(const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
-  // our code
+  
+
 
   /* set parent */
   struct thread *par = thread_current();
@@ -212,10 +215,10 @@ tid_t thread_create(const char *name, int priority,
   t->load_success_status = false;
   t->wait_on_called = false;
 
-  list_init(&t->children_list);
-  // do something with child_elem
+  //Set minimum fd to 2
+  t->fd_counter = INITIAL_FD_COUNT;
 
-  // end
+  
 
   /* Add to run queue. */
   thread_unblock(t);
@@ -304,16 +307,29 @@ void thread_exit(void)
 {
   ASSERT(!intr_context());
 
-  // our code
-  // goto label;
 
   struct thread *cur = thread_current();
+  struct list_elem *e;
+
+  /* close and free fds */
+  for (e = list_begin(&cur->fd_list); e != list_end(&cur->fd_list);
+       e = list_next(e))
+  {
+    struct file_descriptor *f = list_entry(e, struct file_descriptor, fd_elem);
+    close_fd(f->fd, false);
+  }
+
+   while (!list_empty(&cur->fd_list))
+  {
+    struct list_elem *e = list_pop_front(&cur->fd_list);
+    struct file_descriptor *f = list_entry(e, struct file_descriptor, fd_elem);
+    palloc_free_page(f);
+  }
 
   /* sema up `exited` to let the parent know that the thread has exited */
   sema_up(&cur->exited);
 
   /* sema up remaining children `can_free` so they thread struct be freed */
-  struct list_elem *e;
   for (e = list_begin(&cur->children_list); e != list_end(&cur->children_list);
        e = list_next(e))
   {
@@ -507,10 +523,12 @@ init_thread(struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
-  // our code
-
+  
+  
   list_init(&t->children_list);
-  // end
+  list_init(&t->fd_list);
+  
+  
 
   old_level = intr_disable();
   list_push_back(&all_list, &t->allelem);
@@ -669,12 +687,3 @@ struct thread *get_child_thread(tid_t child_tid)
 }
 
 // end
-
-/* file descriptors */
-
-struct file *
-get_file_from_fd(int fd)
-{
-  struct thread *cur = running_thread();
-  //TODO
-}

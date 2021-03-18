@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "threads/synch.h"
 #include "threads/fixed-point.h"
+#include "filesys/file-descriptor.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -22,10 +23,10 @@ typedef int tid_t;
 #define TID_ERROR ((tid_t)-1) /* Error value for tid_t. */
 
 /* Thread priorities. */
-#define PRI_MIN 0      /* Lowest priority. */
-#define PRI_DEFAULT 31 /* Default priority. */
-#define PRI_MAX 63     /* Highest priority. */
-
+#define PRI_MIN 0          /* Lowest priority. */
+#define PRI_DEFAULT 31     /* Default priority. */
+#define PRI_MAX 63         /* Highest priority. */
+#define INITIAL_FD_COUNT 2 /* Thread initial fd count */
 
 /* A kernel thread or user process.
 
@@ -104,7 +105,6 @@ struct thread
    /* Owned by thread.c. */
    unsigned magic; /* Detects stack overflow. */
 
-   
    tid_t parent_tid; /* Parent thread tid */
 
    struct list children_list;   /* list of thread children */
@@ -119,21 +119,11 @@ struct thread
    bool load_success_status;   /* status of loading of executable file */
    struct semaphore load_done; /* semaphore to know if executable has finished loading in exec */
 
-
    /* for storing file_descriptors */
-   int fd_counter; // TODO initialize to 3
+   int fd_counter; 
    struct list fd_list;
 };
 
-// TODO move these in another file?
-struct file_descriptor
-{
-   struct file *file;
-   int fd;
-   struct list_elem fd_elem;
-};
-
-struct file *get_file_from_fd(int fd);
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -171,16 +161,11 @@ void thread_set_nice(int);
 int thread_get_recent_cpu(void);
 int thread_get_load_avg(void);
 
-// our code
 
 struct thread *my_thread_create(const char *name, int priority,
                                 thread_func *function, void *aux);
-
 struct thread *get_thread(tid_t tid);
 struct thread *get_child_thread(tid_t child_tid);
-
 void prepare_thread_for_exit(int exit_value);
-
-// end
 
 #endif /* threads/thread.h */
