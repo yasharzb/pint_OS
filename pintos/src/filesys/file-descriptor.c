@@ -84,7 +84,7 @@ bool remove_file(const char *file_name)
 bool create_file(const char *name, off_t initial_size)
 {
   lock_acquire(&rw_lock);
-  
+
   bool success = filesys_create(name, initial_size);
 
   lock_release(&rw_lock);
@@ -105,6 +105,7 @@ bool close_fd(int fd)
       file_close(f_file->file);
       list_remove(&f_file->fd_elem);
       success = true;
+      palloc_free_page(f_file);
     }
   }
 

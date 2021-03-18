@@ -13,7 +13,6 @@
 #include "threads/vaddr.h"
 #include "filesys/file-descriptor.h"
 
-
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -196,7 +195,6 @@ tid_t thread_create(const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
-
   // our code
 
   /* set parent */
@@ -220,7 +218,6 @@ tid_t thread_create(const char *name, int priority,
   t->fd_counter = INITIAL_FD_COUNT;
 
   // end
-
 
   /* Add to run queue. */
   thread_unblock(t);
@@ -327,13 +324,12 @@ void thread_exit(void)
   }
 
   /* close fds */
-  for (e = list_begin(&cur->fd_list); e != list_end(&cur->fd_list);
-       e = list_next(e))
+
+  while (!list_empty(&cur->fd_list))
   {
     struct file_descriptor *f = list_entry(e, struct file_descriptor, fd_elem);
-    close_fd(f->fd);
+      close_fd(f->fd);
   }
-
 
 #ifdef USERPROG
   process_exit();
@@ -683,4 +679,3 @@ struct thread *get_child_thread(tid_t child_tid)
 }
 
 // end
-

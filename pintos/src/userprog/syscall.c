@@ -14,6 +14,7 @@
 #include "filesys/file-descriptor.h"
 #include "devices/input.h"
 #include "devices/shutdown.h"
+#include "threads/malloc.h"
 
 static void syscall_handler(struct intr_frame *);
 
@@ -22,6 +23,8 @@ void *copy_user_mem_to_kernel(void *src, int size, bool null_terminated);
 void *get_kernel_va_for_user_pointer(void *ptr, int size);
 bool validate_user_pointer(void *ptr, int size);
 int get_syscall_args_count(int syscall);
+void *
+copy_small_user_mem_to_kernel(void *src, int size);
 
 tid_t exec(const char *file_name);
 
@@ -206,7 +209,7 @@ syscall_handler(struct intr_frame *f)
     }
 
 done:
-    palloc_free_page(args);
+    free(args);
     palloc_free_multiple(buffer, buffer_page_count);
     if (!success)
         f->eax = -1;
@@ -214,7 +217,7 @@ done:
     return;
 
 kill_process:
-    palloc_free_page(args);
+    free(args);
     palloc_free_multiple(buffer, buffer_page_count);
     prepare_thread_for_exit(-1);
     thread_exit();
@@ -257,14 +260,14 @@ assign_args(uint32_t *esp)
         and then use `get_syscall_args_count` to know
         how many bytes syscall need to copy and after
         that we will copy args_no *4 bytes */
-    uint32_t *buffer = copy_user_mem_to_kernel(esp, 4, false);
+    uint32_t *buffer = copy_small_user_mem_to_kernel(esp, 4);
     if(buffer == NULL)
         return false;
     int copy_size = get_syscall_args_count(buffer[0]) * 4;
-    palloc_free_page(buffer);
+    free(buffer);
 
     /* copy arguments in user stack to kernel */
-    buffer = copy_user_mem_to_kernel(esp, copy_size, false);
+    buffer = copy_small_user_mem_to_kernel(esp, copy_size);
     if (buffer == NULL)
         return false;
 
@@ -330,6 +333,49 @@ bool validate_user_pointer(void *ptr, int size)
 
     return true;
 }
+
+
+/* copy from src in user virtual address to dst in kernel virtual
+    address. if null_terminated it will continue until reaching zero,
+    else it will copy `size` bytes. */
+void *
+copy_small_user_mem_to_kernel(void *src, int size)
+{
+
+    char *buffer = malloc(size);
+    if (buffer == NULL)
+        goto fail;
+
+    char *current_address = src;
+    int copied_size = 0;
+    while (copied_size < size)
+    {
+        if (!is_user_vaddr(current_address))
+            goto fail;
+
+        /* maximum size that we can copy in this page */
+        int cur_size = (uintptr_t)pg_round_up((void *)current_address) - (uintptr_t)current_address + 1;
+        if (size - copied_size < cur_size)
+            cur_size = size - copied_size;
+
+        /* get kernel virtual address corresponding to currrent address */
+        char *kernel_address = pagedir_get_page(thread_current()->pagedir, (void *)current_address);
+        if (kernel_address == NULL)
+            goto fail;
+
+        memcpy(buffer + copied_size, kernel_address, cur_size);
+        copied_size += cur_size;
+        current_address += cur_size;
+    }
+
+    return buffer;
+
+fail:
+    if (buffer)
+        free(buffer);
+    return NULL;
+}
+
 
 /* copy from src in user virtual address to dst in kernel virtual
     address. if null_terminated it will continue until reaching zero,
