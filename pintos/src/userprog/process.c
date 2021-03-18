@@ -275,7 +275,6 @@ bool load(const char *cmdline, void (**eip)(void), void **esp)
         goto done;
     process_activate();
 
-    // our code
 
     if (strlen(cmdline) > PGSIZE)
         goto done;
@@ -303,8 +302,6 @@ bool load(const char *cmdline, void (**eip)(void), void **esp)
         argc++;
     }
 
-    // make sure to free argv and commands
-    // end
 
     /* Open executable file. */
     file = filesys_open(file_name);
@@ -379,14 +376,12 @@ bool load(const char *cmdline, void (**eip)(void), void **esp)
         }
     }
 
-    // our code
-    if (!alternative_setup_stack(argc, argv, esp))
-        goto done;
-    // end
 
     /* Set up stack. */
-    // if (!setup_stack(esp))
-    // goto done;
+    if (!alternative_setup_stack(argc, argv, esp))
+        goto done;
+    
+
 
     /* Start address. */
     *eip = (void (*)(void))ehdr.e_entry;
@@ -394,11 +389,9 @@ bool load(const char *cmdline, void (**eip)(void), void **esp)
     success = true;
 done:
 
-    // our code
+
     palloc_free_page(commands);
     palloc_free_page(argv);
-
-    // end
 
     /* We arrive here whether the load is successful or not. */
     file_close(file);
@@ -637,7 +630,6 @@ esp->    0xc00000000
     stack_int_pointer[1] = argc;                  //argc
     stack_int_pointer[0] = 0;                     //return address
 
-    // hex_dump((uintptr_t)*esp, *esp, sizeof(char) * total_stack_length, true);
 
 done:
     if (!success && kpage)
