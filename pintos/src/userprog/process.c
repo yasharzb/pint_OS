@@ -543,10 +543,10 @@ setup_stack(int argc, char **argv, void **esp)
     else
         goto done;
 
-    uint32_t totalArgsLength = 0;
+    uint32_t total_args_len = 0;
     for (int i = 0; i < argc; i++)
     {
-        totalArgsLength += strlen(argv[i]) + 1;
+        total_args_len += strlen(argv[i]) + 1;
     }
 
     /* stack format at startup:
@@ -562,9 +562,9 @@ setup_stack(int argc, char **argv, void **esp)
           argc
   esp->   return addr */
 
-    uint32_t align_count = (4 - (totalArgsLength % 4)) % 4;
+    uint32_t align_count = (4 - (total_args_len % 4)) % 4;
     uint32_t total_stack_length =
-        totalArgsLength + align_count // argv chars and alignment
+        total_args_len + align_count // argv chars and alignment
         + 4 * (argc + 1)              // argv[i] pointer for i in [0, argc]
         + 4 * 2                       // argc and argv pointer
         + 4;                          // fake return address
@@ -601,10 +601,10 @@ esp->    0xc00000000
     int remaining_length = total_stack_length - align_count_before_args;
     for (int i = argc - 1; i >= 0; i--)
     {
-        uint32_t argLen = strlen(argv[i]) + 1;
-        remaining_length -= argLen;
+        uint32_t arg_len = strlen(argv[i]) + 1;
+        remaining_length -= arg_len;
 
-        memcpy(stack_pointer + remaining_length, argv[i], argLen);
+        memcpy(stack_pointer + remaining_length, argv[i], arg_len);
 
         // put address of argv[i] in currect position (3 is for ra+argc+argv)
         stack_int_pointer[3 + i] = (uint32_t)(*esp + remaining_length);
