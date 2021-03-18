@@ -83,10 +83,7 @@ syscall_handler(struct intr_frame *f)
     case SYS_EXEC:
         buffer = get_kernel_va_for_user_pointer((void *)args[1], -1);
         if (buffer == NULL)
-        {
-            success = false;
-            goto done;
-        }
+            goto kill_process;
 
         tid_t child_tid = exec(buffer);
         f->eax = child_tid;
@@ -318,7 +315,7 @@ bool validate_user_pointer(void *ptr, int size)
             return false;
 
         /* size remaining in this page */
-        int cur_size = (uintptr_t)pg_round_up((void *)current_address) - (uintptr_t)current_address + 1;
+        int cur_size = (uintptr_t)pg_round_up((void *)(current_address + 1)) - (uintptr_t)current_address;
         if (size - seen_size < cur_size)
             cur_size = size - seen_size;
 
@@ -354,7 +351,7 @@ copy_small_user_mem_to_kernel(void *src, int size)
             goto fail;
 
         /* maximum size that we can copy in this page */
-        int cur_size = (uintptr_t)pg_round_up((void *)current_address) - (uintptr_t)current_address + 1;
+        int cur_size = (uintptr_t)pg_round_up((void *)(current_address + 1)) - (uintptr_t)current_address;
         if (size - copied_size < cur_size)
             cur_size = size - copied_size;
 
@@ -403,7 +400,7 @@ copy_user_mem_to_kernel(void *src, int size, bool null_terminated)
             goto fail;
 
         /* maximum size that we can copy in this page */
-        int cur_size = (uintptr_t)pg_round_up((void *)current_address) - (uintptr_t)current_address + 1;
+        int cur_size = (uintptr_t)pg_round_up((void *)(current_address + 1)) - (uintptr_t)current_address;
         if (size - copied_size < cur_size)
             cur_size = size - copied_size;
 
