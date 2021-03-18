@@ -61,24 +61,6 @@ bool remove_file(const char *file_name)
 
   lock_release(&rw_lock);
   return success;
-  // if(successful){
-  //   struct list_elem *e;
-  //   for (e = list_begin(&all_list); e != list_end(&all_list);
-  //      e = list_next(e))
-  //   {
-  //     struct thread *t = list_entry(e, struct thread, allelem);
-  //     struct list_elem *el;
-  //     for (el = list_begin(&(t->fd_list)); el != list_end(&(t->fd_list));
-  //           el = list_next(el))
-  //     {
-  //       struct file_descriptor *fd = list_entry(el, struct file_descriptor, fd_elem);
-  //       if(strcmp(fd->file_name, fn) == 0 )
-  //       {
-  //         fd->removed = 1;
-  //       }
-  //     }
-  //   }
-  // }
 }
 
 bool create_file(const char *name, off_t initial_size)

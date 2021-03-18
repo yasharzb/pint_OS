@@ -195,7 +195,8 @@ tid_t thread_create(const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
-  // our code
+  
+
 
   /* set parent */
   struct thread *par = thread_current();
@@ -217,7 +218,7 @@ tid_t thread_create(const char *name, int priority,
   //Set minimum fd to 2
   t->fd_counter = INITIAL_FD_COUNT;
 
-  // end
+  
 
   /* Add to run queue. */
   thread_unblock(t);
@@ -522,10 +523,12 @@ init_thread(struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
-  // our code
+  
+  
   list_init(&t->children_list);
   list_init(&t->fd_list);
-  // end
+  
+  
 
   old_level = intr_disable();
   list_push_back(&all_list, &t->allelem);

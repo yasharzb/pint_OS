@@ -85,11 +85,11 @@ start_process(void *file_name_)
     if_.eflags = FLAG_IF | FLAG_MBS;
     success = load(file_name, &if_.eip, &if_.esp);
 
-    // our code
+
     struct thread *t = thread_current();
     t->load_success_status = success;
     sema_up(&t->load_done);
-    // end
+    
 
     /* If load failed, quit. */
     palloc_free_page(file_name);
@@ -242,15 +242,11 @@ struct Elf32_Phdr
 #define PF_W 2 /* Writable. */
 #define PF_R 4 /* Readable. */
 
-static bool setup_stack(void **esp);
+static bool setup_stack(int argc, char **argv, void **esp);
 static bool validate_segment(const struct Elf32_Phdr *, struct file *);
 static bool load_segment(struct file *file, off_t ofs, uint8_t *upage,
                          uint32_t read_bytes, uint32_t zero_bytes,
                          bool writable);
-
-// our code
-static bool alternative_setup_stack(int argc, char **argv, void **esp);
-// end
 
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
@@ -274,8 +270,6 @@ bool load(const char *cmdline, void (**eip)(void), void **esp)
     if (t->pagedir == NULL)
         goto done;
     process_activate();
-
-    // our code
 
     if (strlen(cmdline) > PGSIZE)
         goto done;
@@ -303,9 +297,6 @@ bool load(const char *cmdline, void (**eip)(void), void **esp)
         argc++;
     }
 
-    // make sure to free argv and commands
-    // end
-
     /* Open executable file. */
     file_descriptor *file_d = create_file_descriptor(file_name, t);
     if (file_d == NULL)
@@ -313,14 +304,20 @@ bool load(const char *cmdline, void (**eip)(void), void **esp)
         printf("load: %s: open failed\n", file_name);
         goto done;
     }
-   
+
     file = file_d->file;
-   
+
     // deny write to executable
     file_deny_write(file);
 
     /* Read and verify executable header. */
-    if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr || memcmp(ehdr.e_ident, "\177ELF\1\1\1", 7) || ehdr.e_type != 2 || ehdr.e_machine != 3 || ehdr.e_version != 1 || ehdr.e_phentsize != sizeof(struct Elf32_Phdr) || ehdr.e_phnum > 1024)
+    if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr 
+    || memcmp(ehdr.e_ident, "\177ELF\1\1\1", 7) 
+    || ehdr.e_type != 2 
+    || ehdr.e_machine != 3 
+    || ehdr.e_version != 1 
+    || ehdr.e_phentsize != sizeof(struct Elf32_Phdr) 
+    || ehdr.e_phnum > 1024)
     {
         printf("load: %s: error loading executable\n", file_name);
         goto done;
@@ -384,14 +381,9 @@ bool load(const char *cmdline, void (**eip)(void), void **esp)
         }
     }
 
-    // our code
-    if (!alternative_setup_stack(argc, argv, esp))
-        goto done;
-    // end
-
     /* Set up stack. */
-    // if (!setup_stack(esp))
-    // goto done;
+    if (!setup_stack(argc, argv, esp))
+        goto done;
 
     /* Start address. */
     *eip = (void (*)(void))ehdr.e_entry;
@@ -401,13 +393,9 @@ bool load(const char *cmdline, void (**eip)(void), void **esp)
 done:
     /* We arrive here whether the load is successful or not. */
 
-    // our code
     palloc_free_page(commands);
     palloc_free_page(argv);
 
-    // end
-
-    // file_close(file);
     return success;
 }
 
@@ -519,25 +507,7 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
     return true;
 }
 
-/* Create a minimal stack by mapping a zeroed page at the top of
-   user virtual memory. */
-static bool
-setup_stack(void **esp)
-{
-    uint8_t *kpage;
-    bool success = false;
 
-    kpage = palloc_get_page(PAL_USER | PAL_ZERO);
-    if (kpage != NULL)
-    {
-        success = install_page(((uint8_t *)PHYS_BASE) - PGSIZE, kpage, true);
-        if (success)
-            *esp = PHYS_BASE - 0x0000014;
-        else
-            palloc_free_page(kpage);
-    }
-    return success;
-}
 
 /* Adds a mapping from user virtual address UPAGE to kernel
    virtual address KPAGE to the page table.
@@ -558,7 +528,8 @@ install_page(void *upage, void *kpage, bool writable)
     return (pagedir_get_page(t->pagedir, upage) == NULL && pagedir_set_page(t->pagedir, upage, kpage, writable));
 }
 
-bool alternative_setup_stack(int argc, char **argv, void **esp)
+bool 
+setup_stack(int argc, char **argv, void **esp)
 {
     uint8_t *kpage;
     kpage = palloc_get_page(PAL_USER | PAL_ZERO);
@@ -641,8 +612,6 @@ esp->    0xc00000000
     stack_int_pointer[2] = (uint32_t)(*esp + 12); //argv (12 is for ra+argc+argv)
     stack_int_pointer[1] = argc;                  //argc
     stack_int_pointer[0] = 0;                     //return address
-
-    // hex_dump((uintptr_t)*esp, *esp, sizeof(char) * total_stack_length, true);
 
 done:
     if (!success && kpage)
