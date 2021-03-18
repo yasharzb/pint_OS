@@ -19,12 +19,10 @@
 static void syscall_handler(struct intr_frame *);
 
 uint32_t *assign_args(uint32_t *esp);
-void *copy_user_mem_to_kernel(void *src, int size, bool null_terminated);
+bool copy_user_mem_to_kernel(void *src, void *buffer, int size, bool null_terminated);
 void *get_kernel_va_for_user_pointer(void *ptr, int size);
 bool validate_user_pointer(void *ptr, int size);
 int get_syscall_args_count(int syscall);
-void *
-copy_small_user_mem_to_kernel(void *src, int size);
 
 tid_t exec(const char *file_name);
 
@@ -147,7 +145,7 @@ syscall_handler(struct intr_frame *f)
         // args[2] is a pointer so we need to validate it:
         unsigned w_size = args[3];
         buffer_page_count = (w_size + PGSIZE - 1) / PGSIZE;
-        if(buffer_page_count == 0)
+        if (buffer_page_count == 0)
             buffer_page_count = 1;
         buffer = get_kernel_va_for_user_pointer((void *)args[2], w_size);
         if (buffer == NULL)
@@ -257,16 +255,22 @@ assign_args(uint32_t *esp)
         and then use `get_syscall_args_count` to know
         how many bytes syscall need to copy and after
         that we will copy args_no *4 bytes */
-    uint32_t *buffer = copy_small_user_mem_to_kernel(esp, 4);
-    if(buffer == NULL)
-        return false;
+    uint32_t *buffer = malloc(4);
+    if(!copy_user_mem_to_kernel(esp, buffer, 4, false))
+    {
+        free(buffer);
+        return NULL;
+    }
     int copy_size = get_syscall_args_count(buffer[0]) * 4;
     free(buffer);
 
     /* copy arguments in user stack to kernel */
-    buffer = copy_small_user_mem_to_kernel(esp, copy_size);
-    if (buffer == NULL)
-        return false;
+    buffer = malloc(copy_size);
+    if(!copy_user_mem_to_kernel(esp, buffer, copy_size, false))
+    {
+        free(buffer);
+        return NULL;
+    }
 
     return (uint32_t *)buffer;
 }
@@ -275,7 +279,7 @@ assign_args(uint32_t *esp)
    and return pointer to allocated address.
    pass size=-1 if you don't know the size
    and it will defaulted to `MAX_SYSCALK_ARG_LENGTH`
-   and will be null_terminated. */
+   and null_terminated. */
 void *
 get_kernel_va_for_user_pointer(void *ptr, int size)
 {
@@ -289,9 +293,23 @@ get_kernel_va_for_user_pointer(void *ptr, int size)
     if (ptr == NULL || !is_user_vaddr(ptr))
         return NULL;
 
-    char *buffer = copy_user_mem_to_kernel(ptr, size, null_terminated);
+    int number_of_required_pages = (size + PGSIZE - 1) / PGSIZE;
+
+    // number need to be at least one so it won't return null
+    // if size == 0
+    if (number_of_required_pages == 0)
+        number_of_required_pages = 1;
+
+    /* allocate a page to store data */
+    char *buffer = palloc_get_multiple(0, number_of_required_pages);
     if (buffer == NULL)
         return NULL;
+
+    if (!copy_user_mem_to_kernel(ptr, buffer, size, null_terminated))
+    {
+        palloc_free_multiple(buffer, number_of_required_pages);
+        return NULL;
+    }
 
     if (null_terminated)
     {
@@ -331,67 +349,12 @@ bool validate_user_pointer(void *ptr, int size)
     return true;
 }
 
-
-/* copy from src in user virtual address to dst in kernel virtual
+/* copy from `src` in user virtual address to `buffer` in kernel virtual
     address. if null_terminated it will continue until reaching zero,
-    else it will copy `size` bytes. */
-void *
-copy_small_user_mem_to_kernel(void *src, int size)
+    else it will copy `size` bytes.
+    `buffer` size must at least be `size` */
+bool copy_user_mem_to_kernel(void *src, void *buffer, int size, bool null_terminated)
 {
-
-    char *buffer = malloc(size);
-    if (buffer == NULL)
-        goto fail;
-
-    char *current_address = src;
-    int copied_size = 0;
-    while (copied_size < size)
-    {
-        if (!is_user_vaddr(current_address))
-            goto fail;
-
-        /* maximum size that we can copy in this page */
-        int cur_size = (uintptr_t)pg_round_up((void *)(current_address + 1)) - (uintptr_t)current_address;
-        if (size - copied_size < cur_size)
-            cur_size = size - copied_size;
-
-        /* get kernel virtual address corresponding to currrent address */
-        char *kernel_address = pagedir_get_page(thread_current()->pagedir, (void *)current_address);
-        if (kernel_address == NULL)
-            goto fail;
-
-        memcpy(buffer + copied_size, kernel_address, cur_size);
-        copied_size += cur_size;
-        current_address += cur_size;
-    }
-
-    return buffer;
-
-fail:
-    if (buffer)
-        free(buffer);
-    return NULL;
-}
-
-
-/* copy from src in user virtual address to dst in kernel virtual
-    address. if null_terminated it will continue until reaching zero,
-    else it will copy `size` bytes. */
-void *
-copy_user_mem_to_kernel(void *src, int size, bool null_terminated)
-{
-    int number_of_required_pages = (size + PGSIZE - 1) / PGSIZE;
-
-    // number need to be at least one so it won't return null if
-    // size == 0
-    if (number_of_required_pages == 0)
-        number_of_required_pages = 1;
-
-    /* allocate a page to store data */
-    char *buffer = palloc_get_multiple(0, number_of_required_pages);
-    if (buffer == NULL)
-        goto fail;
-
     char *current_address = src;
     int copied_size = 0;
     while (copied_size < size)
@@ -416,7 +379,7 @@ copy_user_mem_to_kernel(void *src, int size, bool null_terminated)
         {
             char *temp = buffer + copied_size;
             bool null_found = false;
-            while (temp < buffer + copied_size + cur_size)
+            while (temp < (char *)buffer + copied_size + cur_size)
             {
                 if (!(*temp))
                     null_found = true;
@@ -431,13 +394,12 @@ copy_user_mem_to_kernel(void *src, int size, bool null_terminated)
         current_address += cur_size;
     }
 
-    return buffer;
+    return true;
 
 fail:
-    if (buffer)
-        palloc_free_page(buffer);
-    return NULL;
+    return false;
 }
+
 
 int get_syscall_args_count(int syscall)
 {
