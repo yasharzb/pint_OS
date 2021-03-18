@@ -114,7 +114,7 @@ syscall_handler(struct intr_frame *f)
 
     /* void close (int fd) */
     case SYS_CLOSE:
-        success = close_fd(args[1]);
+        success = close_fd(args[1], true);
         break;
 
     /* bool create (const char *file_name, unsigned initial_size) */

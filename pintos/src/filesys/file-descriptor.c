@@ -91,7 +91,7 @@ bool create_file(const char *name, off_t initial_size)
   return success;
 }
 
-bool close_fd(int fd)
+bool close_fd(int fd, bool remove_from_fd_list)
 {
   lock_acquire(&rw_lock);
 
@@ -103,9 +103,12 @@ bool close_fd(int fd)
     if (f_file != NULL)
     {
       file_close(f_file->file);
-      list_remove(&f_file->fd_elem);
+      if (remove_from_fd_list)
+      {
+        list_remove(&f_file->fd_elem);
+        palloc_free_page(f_file);
+      }
       success = true;
-      palloc_free_page(f_file);
     }
   }
 

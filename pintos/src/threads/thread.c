@@ -306,29 +306,34 @@ void thread_exit(void)
 {
   ASSERT(!intr_context());
 
-  // our code
-  // goto label;
 
   struct thread *cur = thread_current();
+  struct list_elem *e;
+
+  /* close and free fds */
+  for (e = list_begin(&cur->fd_list); e != list_end(&cur->fd_list);
+       e = list_next(e))
+  {
+    struct file_descriptor *f = list_entry(e, struct file_descriptor, fd_elem);
+    close_fd(f->fd, false);
+  }
+
+   while (!list_empty(&cur->fd_list))
+  {
+    struct list_elem *e = list_pop_front(&cur->fd_list);
+    struct file_descriptor *f = list_entry(e, struct file_descriptor, fd_elem);
+    palloc_free_page(f);
+  }
 
   /* sema up `exited` to let the parent know that the thread has exited */
   sema_up(&cur->exited);
 
   /* sema up remaining children `can_free` so they thread struct be freed */
-  struct list_elem *e;
   for (e = list_begin(&cur->children_list); e != list_end(&cur->children_list);
        e = list_next(e))
   {
     struct thread *t = list_entry(e, struct thread, child_elem);
     sema_up(&t->can_free);
-  }
-
-  /* close fds */
-
-  while (!list_empty(&cur->fd_list))
-  {
-    struct file_descriptor *f = list_entry(e, struct file_descriptor, fd_elem);
-      close_fd(f->fd);
   }
 
 #ifdef USERPROG

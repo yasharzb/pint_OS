@@ -29,7 +29,7 @@ int is_valid_fd(int fd);
 bool remove_file(const char *fn);
 bool create_file(const char *name, off_t initial_size);
 int size_file(int fd);
-bool close_fd(int fd);
+bool close_fd(int fd, bool remove_from_fd_list);
 void seek_file(int fd, unsigned position);
 unsigned tell_file(int fd);
 
