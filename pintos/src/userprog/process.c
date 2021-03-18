@@ -564,12 +564,12 @@ setup_stack(int argc, char **argv, void **esp)
 
     uint32_t align_count = (4 - (total_args_len % 4)) % 4;
     uint32_t total_stack_length =
-        total_args_len + align_count // argv chars and alignment
-        + 4 * (argc + 1)              // argv[i] pointer for i in [0, argc]
-        + 4 * 2                       // argc and argv pointer
-        + 4;                          // fake return address
+        total_args_len + align_count  /* argv chars and alignment */
+        + 4 * (argc + 1)              /* argv[i] pointer for i in [0, argc] */
+        + 4 * 2                       /* argc and argv pointer */
+        + 4;                          /* fake return address */
 
-    // stack must be 16 aligned before return address
+    /* stack must be 16 aligned before return address */
     uint32_t align_count_before_args = (16 - (total_stack_length - 4) % 16) % 16;
 
     total_stack_length += align_count_before_args;
@@ -596,7 +596,9 @@ esp->    0xc00000000
     *esp -= total_stack_length;
 
     uint8_t *stack_pointer = kpage + PGSIZE - total_stack_length;
-    uint32_t *stack_int_pointer = (uint32_t *)stack_pointer; // this is an "int" pointer for stack
+
+    /* this is an "int" pointer for stack */
+    uint32_t *stack_int_pointer = (uint32_t *)stack_pointer; 
 
     int remaining_length = total_stack_length - align_count_before_args;
     for (int i = argc - 1; i >= 0; i--)
@@ -606,12 +608,12 @@ esp->    0xc00000000
 
         memcpy(stack_pointer + remaining_length, argv[i], arg_len);
 
-        // put address of argv[i] in currect position (3 is for ra+argc+argv)
+        /* put address of argv[i] in currect position (3 is for ra+argc+argv) */
         stack_int_pointer[3 + i] = (uint32_t)(*esp + remaining_length);
     }
-    stack_int_pointer[2] = (uint32_t)(*esp + 12); //argv (12 is for ra+argc+argv)
-    stack_int_pointer[1] = argc;                  //argc
-    stack_int_pointer[0] = 0;                     //return address
+    stack_int_pointer[2] = (uint32_t)(*esp + 12); /* argv (12 is for ra+argc+argv) */
+    stack_int_pointer[1] = argc;                  /* argc */
+    stack_int_pointer[0] = 0;                     /* return address */
 
 done:
     if (!success && kpage)
