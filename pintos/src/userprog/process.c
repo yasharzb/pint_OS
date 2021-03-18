@@ -161,7 +161,6 @@ void process_exit(void)
         pagedir_destroy(pd);
     }
     sema_up(&cur->exited);
-    // sema_up(&temporary);
 }
 
 /* Sets up the CPU for running user code in the current
