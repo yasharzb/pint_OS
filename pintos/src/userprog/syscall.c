@@ -16,11 +16,10 @@
 
 static void syscall_handler(struct intr_frame *);
 
-
 /* accessing user memory */
 uint32_t *assign_args(uint32_t *esp);
 void *copy_user_mem_to_kernel(void *src, int size, bool null_terminated);
-void *get_kernel_va_for_user_pointer(void *ptr);
+void *get_kernel_va_for_user_pointer(void *ptr, int size);
 bool validate_user_pointer(void *ptr, int size);
 
 /**** process control syscalls ****/
@@ -77,7 +76,7 @@ syscall_handler(struct intr_frame *f)
 
     /* pid_t exec (const char *cmd_line) */
     case SYS_EXEC:
-        buffer = get_kernel_va_for_user_pointer((void *)args[1]);
+        buffer = get_kernel_va_for_user_pointer((void *)args[1], -1);
         if (buffer == NULL)
         {
             success = false;
@@ -95,7 +94,7 @@ syscall_handler(struct intr_frame *f)
 
     /* int open (const char *file) */
     case SYS_OPEN:
-        buffer = get_kernel_va_for_user_pointer((void *)args[1]);
+        buffer = get_kernel_va_for_user_pointer((void *)args[1], -1);
         if (buffer == NULL)
             goto kill_process;
         cur_thread = thread_current();
@@ -114,7 +113,7 @@ syscall_handler(struct intr_frame *f)
         break;
 
     case SYS_CREATE:
-        buffer = get_kernel_va_for_user_pointer((void *)args[1]);
+        buffer = get_kernel_va_for_user_pointer((void *)args[1], -1);
         if (buffer == NULL)
         {
             success = false;
@@ -125,7 +124,7 @@ syscall_handler(struct intr_frame *f)
         break;
 
     case SYS_REMOVE:
-        buffer = get_kernel_va_for_user_pointer((void *)args[1]);
+        buffer = get_kernel_va_for_user_pointer((void *)args[1], -1);
         if (buffer == NULL)
         {
             success = false;
@@ -140,14 +139,14 @@ syscall_handler(struct intr_frame *f)
         break;
 
     /* int write (int fd, const void *buffer, unsigned size) */
-    case SYS_WRITE:
+    case SYS_WRITE:;
         // args[2] is a pointer so we need to validate it:
-        buffer = get_kernel_va_for_user_pointer((void *)args[2]);
+        unsigned w_size = args[3];
+        buffer = get_kernel_va_for_user_pointer((void *)args[2], w_size);
         if (buffer == NULL)
             goto kill_process;
 
         int w_bytes_cnt = -1;
-        unsigned w_size = args[3];
         switch (args[1])
         {
         case STDIN_FILENO:
@@ -254,19 +253,32 @@ assign_args(uint32_t *esp)
 }
 
 /* copy user memory pointed by `ptr` to kernel memory
-   and return pointer to allocated address */
+   and return pointer to allocated address.
+   pass size=-1 if you don't know the size
+   and it will defaulted to `MAX_SYSCALK_ARG_LENGTH`
+   and will be null_terminated. */
 void *
-get_kernel_va_for_user_pointer(void *ptr)
+get_kernel_va_for_user_pointer(void *ptr, int size)
 {
+    bool null_terminated = false;
+    if (size == -1)
+    {
+        size = MAX_SYSCALK_ARG_LENGTH;
+        null_terminated = true;
+    }
+
     if (ptr == NULL || !is_user_vaddr(ptr))
         return NULL;
 
-    char *buffer = copy_user_mem_to_kernel(ptr, MAX_SYSCALK_ARG_LENGTH, true);
+    char *buffer = copy_user_mem_to_kernel(ptr, size, null_terminated);
     if (buffer == NULL)
         return NULL;
 
-    /* set last byte in page to zero so kernel don't die in case of not valid string */
-    buffer[MAX_SYSCALK_ARG_LENGTH] = 0;
+    if (null_terminated)
+    {
+        /* set last byte in page to zero so kernel don't die in case of not valid string */
+        buffer[MAX_SYSCALK_ARG_LENGTH] = 0;
+    }
     return (void *)buffer;
 }
 
@@ -302,17 +314,19 @@ bool validate_user_pointer(void *ptr, int size)
 
 /* copy from src in user virtual address to dst in kernel virtual
     address. if null_terminated it will continue until reaching zero,
-    else it will copy `size` bytes. Max size can be PAGE_SIZE.
-    (you can implement o.w. if you need.)
-    will return NULL if fail. */
+    else it will copy `size` bytes. */
 void *
 copy_user_mem_to_kernel(void *src, int size, bool null_terminated)
 {
-    if (size > PGSIZE)
-        return NULL;
+    int number_of_required_pages = (size + PGSIZE - 1) / PGSIZE;
+
+    // number need to be at least one so it won't return null if
+    // size == 0
+    if (number_of_required_pages == 0)
+        number_of_required_pages = 1;
 
     /* allocate a page to store data */
-    char *buffer = palloc_get_page(0);
+    char *buffer = palloc_get_multiple(0, number_of_required_pages);
     if (buffer == NULL)
         goto fail;
 
