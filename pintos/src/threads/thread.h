@@ -162,8 +162,6 @@ int thread_get_recent_cpu(void);
 int thread_get_load_avg(void);
 
 
-struct thread *my_thread_create(const char *name, int priority,
-                                thread_func *function, void *aux);
 struct thread *get_thread(tid_t tid);
 struct thread *get_child_thread(tid_t child_tid);
 void prepare_thread_for_exit(int exit_value);
