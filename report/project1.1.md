@@ -81,33 +81,6 @@ struct thread {
 برای پیاده سازی wait، تابع `process_wait` در `process.c‍‍` تکمیل شد که فرآیند آن دقیقا مشابه مستند طراحی است(در بخش همگام سازی توضیحت آن وجود دارد ). به طور خلاصه از سمافور ‍`exited` برای اطلاع به ریسه پدر هنگام خروجی ریسه فرزند استفاده میشود. این سمافور در `process_wait‍` کاهش میباید. بدین صورت پدر از مقدار خروجی ریسه فرزند آگاه میشود و این جاست که ریسه پدر سمافور `can_free` را افزایش میدهد و فرزند فرآیند خروج خود را طی میکند. بررسی هایی از این دست که ورودی تابع `process_wait‍‍` معتبر باشد و دوبار بر روی ریسه فرزند توفق نکرده باشیم نیز انجام میشوند. 
 همچنین هنگام خروج یک ریسه، سمافور `can_free` برای تمام فرزندان آن ریسه افزایش میباید.
 
-<div dir="ltr">
-
-```c
-struct thread {
-    ...
-
-    tid_t parent_tid;
-
-    struct semaphore exited;
-    int exit_value;
-    bool wait_on_called;
-    struct semaphore can_free;    
-
-    struct list children_list;
-    struct list_elem child_elem;
-
-    bool load_success_status;
-    struct semaphore load_done;
-    
-    int fd_counter;
-    struct list fd_list;
-}
-```
-</div>
-
-پرونده‌ای به نام `file-descriptor` در آدرس `pintos/src/filesys` قرار گرفته که عملیات‌های مربوط به `file descriptor` ها در آن نوشته شده است.
-
 ** ورودی‌های این توابع در صورتی که پوینتر باشند، پیش ازینکه به توابع مربوط به خود بروند، در  پرونده‌ی syscall.c توسط تابع get_kernel_va_for_user_pointer سنجیده می‌شوند که پوینتر صحیحی باشند و پس از کپی شدن این آدرس از حافظه‌ی کاربر به حافظه‌ی کرنل، آدرس صحیح اختصاص یافته به این پوینتر در حافظه‌ی کرنل را برمی‌گرداند.
 
 
@@ -115,6 +88,26 @@ struct thread {
 ============================
 
 >دراینجا توضیحات مربوط به `file-descriptor` قرار می‌گیرد.
+
+
+پرونده‌ای به نام `file-descriptor` در آدرس `pintos/src/filesys` قرار گرفته که عملیات‌های مربوط به `file descriptor` ها در آن نوشته شده است.
+
+
+<div dir="ltr">
+
+```c
+typedef struct file_descriptor
+{
+   struct file *file;
+   char *file_name;
+   int fd;
+   bool closed;
+   bool removed;
+   struct list_elem fd_elem;
+} file_descriptor;
+
+```
+</div>
 
 در این بخش به نحوه‌ی پیاده‌سازی هر کدام از فراخوانی‌های فایلی خواسته شده می‌پردازیم
 
