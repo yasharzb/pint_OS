@@ -17,8 +17,6 @@ typedef struct file_descriptor
    struct file *file;
    char *file_name;
    int fd;
-   bool closed;
-   bool removed;
    struct list_elem fd_elem;
 } file_descriptor;
 
