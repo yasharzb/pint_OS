@@ -13,16 +13,16 @@
 #include "userprog/process.h"
 #include "filesys/file-descriptor.h"
 #include "devices/input.h"
+#include "devices/shutdown.h"
 
 static void syscall_handler(struct intr_frame *);
 
-/* accessing user memory */
 uint32_t *assign_args(uint32_t *esp);
 void *copy_user_mem_to_kernel(void *src, int size, bool null_terminated);
 void *get_kernel_va_for_user_pointer(void *ptr, int size);
 bool validate_user_pointer(void *ptr, int size);
+int get_syscall_args_count(int syscall);
 
-/**** process control syscalls ****/
 tid_t exec(const char *file_name);
 
 /* Static list to keep global_file_descs for thread safety*/
@@ -37,12 +37,9 @@ syscall_handler(struct intr_frame *f)
 {
     bool success = true;
     void *buffer = NULL;
+    int buffer_page_count = 1;
     struct thread *cur_thread;
 
-    // TODO now this will try to copy 16 bytes from esp to kernel memory
-    // (since syscalls has at most 3 arg) but it should be dynamic based
-    // on syscall cause esp can be near end and can cause killing user
-    // process when everything is good
     uint32_t *args = assign_args((uint32_t *)f->esp);
 
     if (args == NULL)
@@ -61,6 +58,11 @@ syscall_handler(struct intr_frame *f)
 
     switch (args[0])
     {
+    /* void halt (void) */
+    case SYS_HALT:
+        shutdown_power_off();
+        break;
+
     /* void exit (int status) */
     case SYS_EXIT:
         f->eax = args[1];
@@ -112,6 +114,7 @@ syscall_handler(struct intr_frame *f)
         success = close_fd(args[1]);
         break;
 
+    /* bool create (const char *file_name, unsigned initial_size) */
     case SYS_CREATE:
         buffer = get_kernel_va_for_user_pointer((void *)args[1], -1);
         if (buffer == NULL)
@@ -123,6 +126,7 @@ syscall_handler(struct intr_frame *f)
         f->eax = create_file(buffer, (unsigned)args[2]);
         break;
 
+    /* bool remove (const char *file_name)*/
     case SYS_REMOVE:
         buffer = get_kernel_va_for_user_pointer((void *)args[1], -1);
         if (buffer == NULL)
@@ -142,6 +146,9 @@ syscall_handler(struct intr_frame *f)
     case SYS_WRITE:;
         // args[2] is a pointer so we need to validate it:
         unsigned w_size = args[3];
+        buffer_page_count = (w_size + PGSIZE - 1) / PGSIZE;
+        if(buffer_page_count == 0)
+            buffer_page_count = 1;
         buffer = get_kernel_va_for_user_pointer((void *)args[2], w_size);
         if (buffer == NULL)
             goto kill_process;
@@ -162,6 +169,7 @@ syscall_handler(struct intr_frame *f)
         f->eax = w_bytes_cnt;
         break;
 
+    /* int read (int fd, void *buffer, unsigned size) */
     case SYS_READ:;
         unsigned read_size = args[3];
 
@@ -183,10 +191,12 @@ syscall_handler(struct intr_frame *f)
         f->eax = read_bytes_cnt;
         break;
 
+    /* unsigned tell (int fd) */
     case SYS_TELL:
         f->eax = tell_file((int)args[1]);
         break;
 
+    /* void seek (int fd, unsigned position) */
     case SYS_SEEK:
         seek_file((int)args[1], (unsigned)args[2]);
         break;
@@ -196,17 +206,16 @@ syscall_handler(struct intr_frame *f)
     }
 
 done:
-
     palloc_free_page(args);
-    palloc_free_page(buffer);
-
+    palloc_free_multiple(buffer, buffer_page_count);
     if (!success)
         f->eax = -1;
+
     return;
 
 kill_process:
     palloc_free_page(args);
-    palloc_free_page(buffer);
+    palloc_free_multiple(buffer, buffer_page_count);
     prepare_thread_for_exit(-1);
     thread_exit();
 }
@@ -244,8 +253,18 @@ assign_args(uint32_t *esp)
     if (!is_user_vaddr(esp))
         return false;
 
+    /* we will only copy 4 bytes to know syscall number 
+        and then use `get_syscall_args_count` to know
+        how many bytes syscall need to copy and after
+        that we will copy args_no *4 bytes */
+    uint32_t *buffer = copy_user_mem_to_kernel(esp, 4, false);
+    if(buffer == NULL)
+        return false;
+    int copy_size = get_syscall_args_count(buffer[0]) * 4;
+    palloc_free_page(buffer);
+
     /* copy arguments in user stack to kernel */
-    char *buffer = copy_user_mem_to_kernel(esp, MAX_SYSCALL_ARGS * 4, false);
+    buffer = copy_user_mem_to_kernel(esp, copy_size, false);
     if (buffer == NULL)
         return false;
 
@@ -375,4 +394,88 @@ fail:
     if (buffer)
         palloc_free_page(buffer);
     return NULL;
+}
+
+int get_syscall_args_count(int syscall)
+{
+    int count = 0;
+    switch (syscall)
+    {
+    /* void halt (void) */
+    case SYS_HALT:
+        count = 0;
+        break;
+
+    /* void exit (int status) */
+    case SYS_EXIT:
+        count = 1;
+        break;
+
+    /* int practice (int i) */
+    case SYS_PRACTICE:
+        count = 1;
+        break;
+
+    /* pid_t exec (const char *cmd_line) */
+    case SYS_EXEC:
+        count = 1;
+        break;
+
+    /* int wait (pid_t pid) */
+    case SYS_WAIT:
+        count = 1;
+        break;
+
+    /* int open (const char *file) */
+    case SYS_OPEN:
+        count = 1;
+        break;
+
+    /* void close (int fd) */
+    case SYS_CLOSE:
+        count = 1;
+        break;
+
+    /* bool create (const char *file_name, unsigned initial_size) */
+    case SYS_CREATE:
+        count = 2;
+        break;
+
+    /* bool remove (const char *file_name) */
+    case SYS_REMOVE:
+        count = 1;
+        break;
+
+    /* int filesize (int fd) */
+    case SYS_FILESIZE:
+        count = 1;
+        break;
+
+    /* int write (int fd, const void *buffer, unsigned size) */
+    case SYS_WRITE:
+        count = 3;
+        break;
+
+    /* int read (int fd, void *buffer, unsigned size) */
+    case SYS_READ:
+        count = 3;
+        break;
+
+    /* unsigned tell (int fd) */
+    case SYS_TELL:
+        count = 1;
+        break;
+
+    /* void seek (int fd, unsigned position) */
+    case SYS_SEEK:
+        count = 2;
+        break;
+
+    default:
+        count = 0;
+        break;
+    }
+
+    // one is for syscall number itself
+    return count + 1;
 }
