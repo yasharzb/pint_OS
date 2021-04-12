@@ -196,7 +196,7 @@ tid_t thread_create(const char *name, int priority,
   sf->ebp = 0;
 
   
-
+#ifdef USERPROG
 
   /* set parent */
   struct thread *par = thread_current();
@@ -218,7 +218,7 @@ tid_t thread_create(const char *name, int priority,
   //Set minimum fd to 2
   t->fd_counter = INITIAL_FD_COUNT;
 
-  
+#endif  
 
   /* Add to run queue. */
   thread_unblock(t);
@@ -296,7 +296,7 @@ tid_t thread_tid(void)
 
 void prepare_thread_for_exit(int exit_value)
 {
-  printf("%s: exit(%d)\n", &thread_current()->name, exit_value);
+  printf("%s: exit(%d)\n", thread_current()->name, exit_value);
   struct thread *cur = thread_current();
   cur->exit_value = exit_value;
 }
@@ -307,6 +307,7 @@ void thread_exit(void)
 {
   ASSERT(!intr_context());
 
+#ifdef USERPROG
 
   struct thread *cur = thread_current();
   struct list_elem *e;
@@ -341,13 +342,12 @@ void thread_exit(void)
     sema_up(&t->can_free);
   }
 
-#ifdef USERPROG
   process_exit();
-#endif
+
 
   /* wait for parent to let the thread die */
   sema_down(&cur->can_free);
-
+#endif
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
@@ -355,9 +355,10 @@ void thread_exit(void)
   intr_disable();
   list_remove(&thread_current()->allelem);
 
+#ifdef USERPROG
   /* remove from parent children_list */
   list_remove(&thread_current()->child_elem);
-
+#endif
   thread_current()->status = THREAD_DYING;
   schedule();
   NOT_REACHED();
@@ -528,10 +529,10 @@ init_thread(struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
   
-  
+#ifdef USERPROG
   list_init(&t->children_list);
   list_init(&t->fd_list);
-  
+#endif
   
 
   old_level = intr_disable();
