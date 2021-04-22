@@ -114,8 +114,7 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters))
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
+    thread_unblock (get_and_remove_next_thread(&sema->waiters));
   sema->value++;
   intr_set_level (old_level);
 }
@@ -317,8 +316,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (lock_held_by_current_thread (lock));
 
   if (!list_empty (&cond->waiters))
-    sema_up (&list_entry (list_pop_front (&cond->waiters),
-                          struct semaphore_elem, elem)->semaphore);
+    sema_up (get_and_remove_next_sema_for_cond(&cond->waiters));
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
@@ -336,3 +334,37 @@ cond_broadcast (struct condition *cond, struct lock *lock)
   while (!list_empty (&cond->waiters))
     cond_signal (cond, lock);
 }
+
+
+/* A `list_less_func` that compares waiters of two semaphores
+   based on priority. Usefull for passing to `list_max` function
+   in `get_and_remove_next_sema_for_cond`.
+   */
+bool
+cond_priority_less_function (const struct list_elem *a,
+                             const struct list_elem *b,
+                             void *aux) {
+  struct semaphore semaphore_a = (list_entry (a, struct semaphore_elem, elem))->semaphore;
+  struct semaphore semaphore_b = (list_entry (b, struct semaphore_elem, elem))->semaphore;
+
+  struct list_elem *e = list_max(&semaphore_a.waiters, thread_priority_less_function, NULL);
+  struct thread *thread_a = list_entry(e, struct thread, elem);
+
+  e = list_max(&semaphore_a.waiters, thread_priority_less_function, NULL);
+  struct thread *thread_b = list_entry(e, struct thread, elem);
+
+  return thread_a->effective_priority < thread_b->effective_priority;
+}
+
+/* Find the sema in condition waiters that has thread with
+   maximum priority in it's waiting list and remove it from
+   list.
+  */
+struct semaphore*
+get_and_remove_next_sema_for_cond (struct list *list)
+{
+  struct list_elem *e = list_max(list, cond_priority_less_function, NULL);
+  struct semaphore *s = list_entry(e, struct semaphore_elem, elem);
+  list_remove(e);
+  return s;
+};

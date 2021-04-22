@@ -124,6 +124,12 @@ struct thread
    /* for storing file_descriptors */
    int fd_counter;
    struct list fd_list;
+
+
+   int effective_priority;          /* Thread's effective priority */
+   struct lock *priority_lock;      /* Lock for changing thread effective priority */
+   struct list holding_locks_list;  /* List of locks that thread is holding */
+   struct lock *waiting_lock;       /* Lock that thread is waiting to acquire */
 };
 
 /* If false (default), use round-robin scheduler.
@@ -165,5 +171,11 @@ int thread_get_load_avg(void);
 struct thread *get_thread(tid_t tid);
 struct thread *get_child_thread(tid_t child_tid);
 void prepare_thread_for_exit(int exit_value);
+
+bool thread_priority_less_function (const struct list_elem *a,
+                             const struct list_elem *b,
+                             void *aux);
+
+struct thread *get_and_remove_next_thread(struct list *list);
 
 #endif /* threads/thread.h */

@@ -528,7 +528,8 @@ init_thread(struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
-  
+  t->effective_priority = priority;
+
 #ifdef USERPROG
   list_init(&t->children_list);
   list_init(&t->fd_list);
@@ -563,8 +564,9 @@ next_thread_to_run(void)
 {
   if (list_empty(&ready_list))
     return idle_thread;
-  else
-    return list_entry(list_pop_front(&ready_list), struct thread, elem);
+  else {
+    return get_and_remove_next_thread(&ready_list);
+  }
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -653,7 +655,8 @@ allocate_tid(void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof(struct thread, stack);
 
-struct thread *get_thread(tid_t tid)
+struct thread *
+get_thread(tid_t tid)
 {
   struct list_elem *e;
 
@@ -669,7 +672,8 @@ struct thread *get_thread(tid_t tid)
   return NULL;
 }
 
-struct thread *get_child_thread(tid_t child_tid)
+struct thread *
+get_child_thread(tid_t child_tid)
 {
   struct thread *parent_thread = thread_current();
 
@@ -687,3 +691,30 @@ struct thread *get_child_thread(tid_t child_tid)
   return NULL;
 }
 
+
+/* A `list_less_func` that compares two threads based on effective
+   priority. Usefull for passing to `list_max` function
+   in `get_and_remove_next_thread.` 
+   */
+bool
+thread_priority_less_function (const struct list_elem *a,
+                             const struct list_elem *b,
+                             void *aux) {
+  struct thread *thread_a = list_entry (a, struct thread, elem);
+  struct thread *thread_b = list_entry (b, struct thread, elem);
+
+  return thread_a->effective_priority < thread_b->effective_priority;
+}
+
+
+/* Find the thread with maximum effective priority in `list` 
+   and remove it from the list.
+   */
+struct thread*
+get_and_remove_next_thread (struct list *list)
+{
+  struct list_elem *e = list_max(list, thread_priority_less_function, NULL);
+  struct thread *t = list_entry(e, struct thread, elem);
+  list_remove(e);
+  return t;
+};
