@@ -21,12 +21,13 @@ struct locks
     struct lock *b;
   };
 
+
+static thread_func low_thread_func;
 static thread_func medium_thread_func;
-static thread_func middle_thread_func;
 static thread_func high_thread_func;
 
 void
-testtt (void)
+test_sema_up_priority_denote (void)
 {
   struct lock a, b;
   struct locks locks;
@@ -46,10 +47,10 @@ testtt (void)
 
   locks.a = &a;
   locks.b = &b;
-  thread_create ("medium", PRI_DEFAULT + 1, medium_thread_func, &locks);
+  thread_create ("low", PRI_DEFAULT + 1, low_thread_func, &locks);
   thread_yield ();
 
-  thread_create("middle", PRI_DEFAULT + 2, middle_thread_func, &a);
+  thread_create("medium", PRI_DEFAULT + 2, medium_thread_func, &a);
   thread_yield();
 
   thread_create ("high", PRI_DEFAULT + 3, high_thread_func, &b);
@@ -57,29 +58,29 @@ testtt (void)
 
   lock_release (&a);
   thread_yield ();
+
+  msg ("E");
 }
 
 static void
-middle_thread_func(void *lock_) {
-    struct lock *lock = lock_;
-    lock_acquire(lock);
-    msg("C");
-    lock_release(lock);
+medium_thread_func(void *lock_) {
+  struct lock *lock = lock_;
+  lock_acquire(lock);
+  msg("D");
+  lock_release(lock);
 }
 
 static void
-medium_thread_func (void *locks_)
+low_thread_func (void *locks_)
 {
   struct locks *locks = locks_;
 
   lock_acquire (locks->b);
   lock_acquire (locks->a);
-
   msg("B");
 
   lock_release (locks->a);
   thread_yield ();
-
   lock_release (locks->b);
   thread_yield ();
 }
@@ -88,7 +89,7 @@ static void
 high_thread_func (void *lock_)
 {
   struct lock *lock = lock_;
-
   lock_acquire (lock);
+  msg("C");
   lock_release (lock);
 }
