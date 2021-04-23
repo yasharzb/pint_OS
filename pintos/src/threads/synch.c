@@ -194,7 +194,7 @@ lock_acquire (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
-  
+
   enum intr_level old_level;
   old_level = intr_disable ();
   
@@ -202,6 +202,10 @@ lock_acquire (struct lock *lock)
   struct thread *t = thread_current();
   t->waiting_lock = lock;
   compare_priority_and_update(lock->holder, t->effective_priority);
+
+  if(lock->holder != NULL) {
+    ASSERT (lock->holder->effective_priority >= t->effective_priority);
+  }
 
   sema_down (&lock->semaphore);
   

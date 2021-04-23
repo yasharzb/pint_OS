@@ -222,6 +222,9 @@ tid_t thread_create(const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock(t);
+  
+  /* yield the thread so if t can run if it has higher priority. */
+  thread_yield();
 
   return tid;
 }
@@ -259,6 +262,7 @@ void thread_unblock(struct thread *t)
   ASSERT(t->status == THREAD_BLOCKED);
   list_push_back(&ready_list, &t->elem);
   t->status = THREAD_READY;
+  
   intr_set_level(old_level);
 }
 
@@ -401,12 +405,13 @@ void thread_foreach(thread_action_func *func, void *aux)
 void thread_set_priority(int new_priority)
 {
   thread_current()->priority = new_priority;
+  calculate_priority_and_yield(thread_current());
 }
 
 /* Returns the current thread's priority. */
 int thread_get_priority(void)
 {
-  return thread_current()->priority;
+  return thread_current()->effective_priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -727,7 +732,6 @@ get_and_remove_next_thread (struct list *list)
 void 
 compare_priority_and_update(struct thread *t, int priority) {
   /* Return if t is null */
-
   if(!t) 
     return;
 
@@ -736,9 +740,7 @@ compare_priority_and_update(struct thread *t, int priority) {
     return;
   
   /* o.w. update effective priority */
-  lock_acquire(&t->priority_lock);
   t->effective_priority = priority;
-  lock_release(&t->priority_lock);
 
   /* If thread is waiting for any lock we need to also update priority of 
     that lock's holder.
@@ -747,8 +749,6 @@ compare_priority_and_update(struct thread *t, int priority) {
     struct thread *holder = (t->waiting_lock)->holder;
     compare_priority_and_update(holder, priority);
   }
-
-  // TODO thread yield?
 }
 
 /*  Calculate thread `t` effective priority based on thread's self priority
