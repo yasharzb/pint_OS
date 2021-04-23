@@ -194,9 +194,24 @@ lock_acquire (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
+  
+  enum intr_level old_level;
+  old_level = intr_disable ();
+  
+  /* Set thread `waiting_lock` and donate priority to lock holder */
+  struct thread *t = thread_current();
+  t->waiting_lock = lock;
+  compare_priority_and_update(lock->holder, t->effective_priority);
 
   sema_down (&lock->semaphore);
+  
+  /* Set `waiting_lock` to null and add lock to thread's `holding_locks_list */
+  t->waiting_lock = NULL;
+  list_push_back(&t->holding_locks_list, &lock->holder_elem);
+
   lock->holder = thread_current ();
+
+  intr_set_level (old_level);  
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -230,8 +245,19 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
+  enum intr_level old_level;
+  old_level = intr_disable ();
+
   lock->holder = NULL;
   sema_up (&lock->semaphore);
+
+  /* Remove lock from thread's `holding_locks_list` */
+  list_remove(&lock->holder_elem);
+  
+  struct thread *t = thread_current();
+  calculate_priority_and_yield(t);
+
+  intr_set_level (old_level);
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -343,14 +369,14 @@ cond_broadcast (struct condition *cond, struct lock *lock)
 bool
 cond_priority_less_function (const struct list_elem *a,
                              const struct list_elem *b,
-                             void *aux) {
+                             void *aux UNUSED) {
   struct semaphore semaphore_a = (list_entry (a, struct semaphore_elem, elem))->semaphore;
   struct semaphore semaphore_b = (list_entry (b, struct semaphore_elem, elem))->semaphore;
 
   struct list_elem *e = list_max(&semaphore_a.waiters, thread_priority_less_function, NULL);
   struct thread *thread_a = list_entry(e, struct thread, elem);
 
-  e = list_max(&semaphore_a.waiters, thread_priority_less_function, NULL);
+  e = list_max(&semaphore_b.waiters, thread_priority_less_function, NULL);
   struct thread *thread_b = list_entry(e, struct thread, elem);
 
   return thread_a->effective_priority < thread_b->effective_priority;
@@ -364,7 +390,8 @@ struct semaphore*
 get_and_remove_next_sema_for_cond (struct list *list)
 {
   struct list_elem *e = list_max(list, cond_priority_less_function, NULL);
-  struct semaphore *s = list_entry(e, struct semaphore_elem, elem);
+  struct semaphore *s = &list_entry(e, struct semaphore_elem, elem)->semaphore;
   list_remove(e);
   return s;
 };
+
