@@ -377,10 +377,13 @@ cond_priority_less_function (const struct list_elem *a,
   struct semaphore semaphore_a = (list_entry (a, struct semaphore_elem, elem))->semaphore;
   struct semaphore semaphore_b = (list_entry (b, struct semaphore_elem, elem))->semaphore;
 
-  struct list_elem *e = list_max(&semaphore_a.waiters, thread_priority_less_function, NULL);
+  struct list_elem *e;
+
+  /* there is always only one waiter for semaphores of condition */
+  e = list_front(&semaphore_a.waiters);
   struct thread *thread_a = list_entry(e, struct thread, elem);
 
-  e = list_max(&semaphore_b.waiters, thread_priority_less_function, NULL);
+  e = list_front(&semaphore_b.waiters);
   struct thread *thread_b = list_entry(e, struct thread, elem);
 
   return thread_a->effective_priority < thread_b->effective_priority;
