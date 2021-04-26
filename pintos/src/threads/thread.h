@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "threads/synch.h"
 #include "threads/fixed-point.h"
 #include "filesys/file-descriptor.h"
@@ -125,11 +126,12 @@ struct thread
    int fd_counter;
    struct list fd_list;
 
-
-   int effective_priority;          /* Thread's effective priority */
-   struct lock *priority_lock;      /* Lock for changing thread effective priority */
-   struct list holding_locks_list;  /* List of locks that thread is holding */
-   struct lock *waiting_lock;       /* Lock that thread is waiting to acquire */
+   int effective_priority;         /* Thread's effective priority */
+   struct lock *priority_lock;     /* Lock for changing thread effective priority */
+   struct list holding_locks_list; /* List of locks that thread is holding */
+   struct lock *waiting_lock;      /* Lock that thread is waiting to acquire */
+   int64_t target_ticks;
+   struct list_elem alarm_elm;
 };
 
 /* If false (default), use round-robin scheduler.
@@ -137,10 +139,12 @@ struct thread
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
 
+bool cmp_target_ticks(const struct list_elem *a, const struct list_elem *b, void *aux);
+
 void thread_init(void);
 void thread_start(void);
 
-void thread_tick(void);
+void thread_tick(int64_t timer_ticks, int is_pending);
 void thread_print_stats(void);
 
 typedef void thread_func(void *aux);
@@ -172,9 +176,9 @@ struct thread *get_thread(tid_t tid);
 struct thread *get_child_thread(tid_t child_tid);
 void prepare_thread_for_exit(int exit_value);
 
-bool thread_priority_less_function (const struct list_elem *a,
-                             const struct list_elem *b,
-                             void *aux);
+bool thread_priority_less_function(const struct list_elem *a,
+                                   const struct list_elem *b,
+                                   void *aux);
 
 struct thread *get_and_remove_next_thread(struct list *list);
 

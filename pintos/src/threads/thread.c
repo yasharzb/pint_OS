@@ -119,7 +119,7 @@ void thread_start(void)
 
 /* Called by the timer interrupt handler at each timer tick.
    Thus, this function runs in an external interrupt context. */
-void thread_tick(void)
+void thread_tick(int64_t timer_ticks, int is_pending)
 {
   struct thread *t = thread_current();
 
@@ -135,7 +135,13 @@ void thread_tick(void)
 
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
+  {
     intr_yield_on_return();
+  }
+  if (is_pending && t->target_ticks > timer_ticks)
+  {
+    thread_yield();
+  }
 }
 
 /* Prints thread statistics. */
@@ -195,7 +201,6 @@ tid_t thread_create(const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
-  
 #ifdef USERPROG
 
   /* set parent */
@@ -218,12 +223,20 @@ tid_t thread_create(const char *name, int priority,
   //Set minimum fd to 2
   t->fd_counter = INITIAL_FD_COUNT;
 
-#endif  
+#endif
 
   /* Add to run queue. */
   thread_unblock(t);
 
   return tid;
+}
+
+/* Compares two list_elem (each representing a thread) by their target_ticks */
+bool cmp_target_ticks(const struct list_elem *a, const struct list_elem *b, void *aux)
+{
+  struct thread *t_a = list_entry(a, struct thread, alarm_elm);
+  struct thread *t_b = list_entry(b, struct thread, alarm_elm);
+  return t_a->target_ticks > t_b->target_ticks;
 }
 
 /* Puts the current thread to sleep.  It will not be scheduled
@@ -320,7 +333,7 @@ void thread_exit(void)
     close_fd(f->fd, false);
   }
 
-   while (!list_empty(&cur->fd_list))
+  while (!list_empty(&cur->fd_list))
   {
     struct list_elem *e = list_pop_front(&cur->fd_list);
     struct file_descriptor *f = list_entry(e, struct file_descriptor, fd_elem);
@@ -328,7 +341,7 @@ void thread_exit(void)
   }
 
   /* close executable file */
-  if(cur->executable_file)
+  if (cur->executable_file)
     file_close(cur->executable_file);
 
   /* sema up `exited` to let the parent know that the thread has exited */
@@ -343,7 +356,6 @@ void thread_exit(void)
   }
 
   process_exit();
-
 
   /* wait for parent to let the thread die */
   sema_down(&cur->can_free);
@@ -534,7 +546,6 @@ init_thread(struct thread *t, const char *name, int priority)
   list_init(&t->children_list);
   list_init(&t->fd_list);
 #endif
-  
 
   old_level = intr_disable();
   list_push_back(&all_list, &t->allelem);
@@ -564,7 +575,8 @@ next_thread_to_run(void)
 {
   if (list_empty(&ready_list))
     return idle_thread;
-  else {
+  else
+  {
     return get_and_remove_next_thread(&ready_list);
   }
 }
@@ -691,27 +703,25 @@ get_child_thread(tid_t child_tid)
   return NULL;
 }
 
-
 /* A `list_less_func` that compares two threads based on effective
    priority. Usefull for passing to `list_max` function
    in `get_and_remove_next_thread.` 
    */
-bool
-thread_priority_less_function (const struct list_elem *a,
-                             const struct list_elem *b,
-                             void *aux) {
-  struct thread *thread_a = list_entry (a, struct thread, elem);
-  struct thread *thread_b = list_entry (b, struct thread, elem);
+bool thread_priority_less_function(const struct list_elem *a,
+                                   const struct list_elem *b,
+                                   void *aux)
+{
+  struct thread *thread_a = list_entry(a, struct thread, elem);
+  struct thread *thread_b = list_entry(b, struct thread, elem);
 
   return thread_a->effective_priority < thread_b->effective_priority;
 }
 
-
 /* Find the thread with maximum effective priority in `list` 
    and remove it from the list.
    */
-struct thread*
-get_and_remove_next_thread (struct list *list)
+struct thread *
+get_and_remove_next_thread(struct list *list)
 {
   struct list_elem *e = list_max(list, thread_priority_less_function, NULL);
   struct thread *t = list_entry(e, struct thread, elem);
