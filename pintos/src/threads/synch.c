@@ -116,6 +116,7 @@ sema_up (struct semaphore *sema)
   if (!list_empty (&sema->waiters))
     thread_unblock (get_and_remove_next_thread(&sema->waiters));
   sema->value++;
+  thread_yield_if_necessery();
   intr_set_level (old_level);
 }
 

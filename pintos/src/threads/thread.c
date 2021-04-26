@@ -72,6 +72,9 @@ static void schedule(void);
 void thread_schedule_tail(struct thread *prev);
 static tid_t allocate_tid(void);
 
+static int get_highest_priority(void);
+void thread_yield_if_necessery(void);
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -168,7 +171,7 @@ tid_t thread_create(const char *name, int priority,
   struct switch_entry_frame *ef;
   struct switch_threads_frame *sf;
   tid_t tid;
-
+  
   ASSERT(function != NULL);
 
   /* Allocate thread. */
@@ -223,8 +226,8 @@ tid_t thread_create(const char *name, int priority,
   /* Add to run queue. */
   thread_unblock(t);
   
-  /* yield the thread so if t can run if it has higher priority. */
-  thread_yield();
+  /* yield the thread so `t` can run if it has higher priority. */
+  thread_yield_if_necessery();
 
   return tid;
 }
@@ -749,6 +752,7 @@ compare_priority_and_update(struct thread *t, int priority) {
     struct thread *holder = (t->waiting_lock)->holder;
     compare_priority_and_update(holder, priority);
   }
+
 }
 
 /*  Calculate thread `t` effective priority based on thread's self priority
@@ -784,6 +788,28 @@ calculate_priority_and_yield(struct thread *t) {
   /* Update effective priority */
   t->effective_priority = new_priority;
 
-  thread_yield();
+  thread_yield_if_necessery();
+}
 
+
+static int
+get_highest_priority() {
+  int highest_priority = PRI_MIN;
+  
+  struct list_elem *e;
+  for (e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(e)) {
+    struct thread *t = list_entry(e, struct thread, elem);
+    if (t->effective_priority > highest_priority)
+      highest_priority = t->effective_priority;
+  }
+  
+  return highest_priority;
+}
+
+/* Yields the cpu if there is a higher priority thread in ready list */
+void
+thread_yield_if_necessery(void)
+{
+  if (get_highest_priority() > thread_current()->effective_priority)
+    thread_yield();
 }
