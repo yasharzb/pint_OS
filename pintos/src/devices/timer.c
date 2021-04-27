@@ -106,6 +106,10 @@ void thread_pop_unblock()
     {
       thread_unblock(t);
       list_remove(t_elem);
+    } 
+    else  
+    {
+      break;
     }
   }
   intr_set_level(old_level);
