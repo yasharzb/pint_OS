@@ -23,7 +23,7 @@ static int64_t ticks;
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
-static struct list thr_list;
+static struct list sleep_threads_list;
 
 static intr_handler_func timer_interrupt;
 static bool too_many_loops(unsigned loops);
@@ -35,7 +35,7 @@ static void real_time_delay(int64_t num, int32_t denom);
    and registers the corresponding interrupt. */
 void timer_init(void)
 {
-  list_init(&thr_list);
+  list_init(&sleep_threads_list);
   pit_configure_channel(0, 2, TIMER_FREQ);
   intr_register_ext(0x20, timer_interrupt, "8254 Timer");
 }
@@ -88,7 +88,7 @@ timer_elapsed(int64_t then)
 void thread_push_block(struct thread *t)
 {
   enum intr_level old_level = intr_disable();
-  list_insert_ordered(&thr_list, &t->alarm_elm, &cmp_target_ticks, NULL);
+  list_insert_ordered(&sleep_threads_list, &t->alarm_elem, &cmp_target_ticks, NULL);
   thread_block();
   intr_set_level(old_level);
 }
@@ -96,20 +96,16 @@ void thread_push_block(struct thread *t)
 /* Remove a thread from pending threads after the set due */
 void thread_pop_unblock()
 {
-  struct list_elem *t_elm;
+  struct list_elem *t_elem;
   enum intr_level old_level = intr_disable();
   struct thread *t;
-  for (t_elm = list_begin(&thr_list); t_elm != list_end(&thr_list); t_elm = t_elm->next)
+  for (t_elem = list_begin(&sleep_threads_list); t_elem != list_end(&sleep_threads_list); t_elem = t_elem->next)
   {
-    t = list_entry(t_elm, struct thread, alarm_elm);
+    t = list_entry(t_elem, struct thread, alarm_elem);
     if (t->target_ticks <= timer_ticks() && t->status == THREAD_BLOCKED)
     {
       thread_unblock(t);
-      list_remove(t_elm);
-    }
-    else
-    {
-      break;
+      list_remove(t_elem);
     }
   }
   intr_set_level(old_level);

@@ -130,8 +130,9 @@ struct thread
    struct lock *priority_lock;     /* Lock for changing thread effective priority */
    struct list holding_locks_list; /* List of locks that thread is holding */
    struct lock *waiting_lock;      /* Lock that thread is waiting to acquire */
-   int64_t target_ticks;
-   struct list_elem alarm_elm;
+   
+   int64_t target_ticks;         /* Tick at which thread must wake up if it is sleep */
+   struct list_elem alarm_elem;  /* List elem for storing thread in sleep_threads_list */
 };
 
 /* If false (default), use round-robin scheduler.

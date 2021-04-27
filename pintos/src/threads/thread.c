@@ -230,8 +230,8 @@ tid_t thread_create(const char *name, int priority,
 /* Compares two list_elem (each representing a thread) by their target_ticks */
 bool cmp_target_ticks(const struct list_elem *a, const struct list_elem *b, void *aux)
 {
-  struct thread *t_a = list_entry(a, struct thread, alarm_elm);
-  struct thread *t_b = list_entry(b, struct thread, alarm_elm);
+  struct thread *t_a = list_entry(a, struct thread, alarm_elem);
+  struct thread *t_b = list_entry(b, struct thread, alarm_elem);
   return t_a->target_ticks < t_b->target_ticks;
 }
 
