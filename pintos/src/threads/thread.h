@@ -183,4 +183,7 @@ bool thread_priority_less_function(const struct list_elem *a,
 
 struct thread *get_and_remove_next_thread(struct list *list);
 
+void compare_priority_and_update(struct thread *t, int priority);
+void calculate_priority_and_yield(struct thread *t);
+
 #endif /* threads/thread.h */
