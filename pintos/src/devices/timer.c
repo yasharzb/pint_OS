@@ -24,7 +24,6 @@ static int64_t ticks;
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
 static struct list thr_list;
-static int16_t held_ticks = 0;
 
 static intr_handler_func timer_interrupt;
 static bool too_many_loops(unsigned loops);
@@ -97,40 +96,21 @@ void thread_push_block(struct thread *t)
 /* Remove a thread from pending threads after the set due */
 void thread_pop_unblock()
 {
-  struct list_elem *t_elm = list_begin(&thr_list);
+  struct list_elem *t_elm;
   enum intr_level old_level = intr_disable();
   struct thread *t;
-  while (t_elm != list_end(&thr_list))
+  for (t_elm = list_begin(&thr_list); t_elm != list_end(&thr_list); t_elm = t_elm->next)
   {
     t = list_entry(t_elm, struct thread, alarm_elm);
     if (t->target_ticks <= timer_ticks() && t->status == THREAD_BLOCKED)
     {
-      t->status = THREAD_BE_UNBLOCKED;
+      thread_unblock(t);
+      list_remove(t_elm);
     }
     else
     {
       break;
     }
-  }
-  intr_set_level(old_level);
-}
-
-bool unblock_to_be_unblocked_threads()
-{
-  struct list_elem *t_elm = list_begin(&thr_list);
-  enum intr_level old_level = intr_disable();
-  struct thread *t;
-  t = list_entry(t_elm, struct thread, alarm_elm);
-  if (t->status == THREAD_BE_UNBLOCKED)
-  {
-    t->status = THREAD_BLOCKED;
-    thread_unblock(t);
-    list_remove(t_elm);
-    return true;
-  }
-  else
-  {
-    return false;
   }
   intr_set_level(old_level);
 }
@@ -214,17 +194,8 @@ void timer_print_stats(void)
 static void
 timer_interrupt(struct intr_frame *args UNUSED)
 {
-  if (unblock_to_be_unblocked_threads())
-  {
-    held_ticks++;
-  }
-  else
-  {
-    ticks += held_ticks;
-    held_ticks = 0;
-    ticks++;
-    thread_tick();
-  }
+  ticks++;
+  thread_tick();
   thread_pop_unblock();
 }
 

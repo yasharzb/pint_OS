@@ -21,7 +21,6 @@ void timer_sleep(int64_t ticks);
 void timer_msleep(int64_t milliseconds);
 void timer_usleep(int64_t microseconds);
 void timer_nsleep(int64_t nanoseconds);
-bool unblock_to_be_unblocked_threads(void);
 
 /* Busy waits. */
 void timer_mdelay(int64_t milliseconds);
