@@ -127,7 +127,6 @@ struct thread
    struct list fd_list;
 
    int effective_priority;         /* Thread's effective priority */
-   struct lock *priority_lock;     /* Lock for changing thread effective priority */
    struct list holding_locks_list; /* List of locks that thread is holding */
    struct lock *waiting_lock;      /* Lock that thread is waiting to acquire */
    

@@ -546,7 +546,6 @@ init_thread(struct thread *t, const char *name, int priority)
 
   t->effective_priority = priority;
   list_init(&t->holding_locks_list);
-  lock_init(&t->priority_lock);
 
 #ifdef USERPROG
   list_init(&t->children_list);
