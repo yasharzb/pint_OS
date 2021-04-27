@@ -15,7 +15,8 @@ enum thread_status
    THREAD_RUNNING, /* Running thread. */
    THREAD_READY,   /* Not running but ready to run. */
    THREAD_BLOCKED, /* Waiting for an event to trigger. */
-   THREAD_DYING    /* About to be destroyed. */
+   THREAD_DYING,    /* About to be destroyed. */
+   THREAD_BE_UNBLOCKED /* Thread can be unblocked */
 };
 
 /* Thread identifier type.
@@ -144,7 +145,7 @@ bool cmp_target_ticks(const struct list_elem *a, const struct list_elem *b, void
 void thread_init(void);
 void thread_start(void);
 
-void thread_tick(int64_t timer_ticks, int is_pending);
+void thread_tick(void);
 void thread_print_stats(void);
 
 typedef void thread_func(void *aux);

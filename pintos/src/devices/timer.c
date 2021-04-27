@@ -24,6 +24,7 @@ static int64_t ticks;
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
 static struct list thr_list;
+static int16_t held_ticks = 0;
 
 static intr_handler_func timer_interrupt;
 static bool too_many_loops(unsigned loops);
@@ -89,6 +90,7 @@ void thread_push_block(struct thread *t)
 {
   enum intr_level old_level = intr_disable();
   list_insert_ordered(&thr_list, &t->alarm_elm, &cmp_target_ticks, NULL);
+  thread_block();
   intr_set_level(old_level);
 }
 
@@ -101,14 +103,34 @@ void thread_pop_unblock()
   while (t_elm != list_end(&thr_list))
   {
     t = list_entry(t_elm, struct thread, alarm_elm);
-    if (t->target_ticks <= timer_ticks())
+    if (t->target_ticks <= timer_ticks() && t->status == THREAD_BLOCKED)
     {
-      // t_elm = list_remove(t_elm);
+      t->status = THREAD_BE_UNBLOCKED;
     }
     else
     {
       break;
     }
+  }
+  intr_set_level(old_level);
+}
+
+bool unblock_to_be_unblocked_threads()
+{
+  struct list_elem *t_elm = list_begin(&thr_list);
+  enum intr_level old_level = intr_disable();
+  struct thread *t;
+  t = list_entry(t_elm, struct thread, alarm_elm);
+  if (t->status == THREAD_BE_UNBLOCKED)
+  {
+    t->status = THREAD_BLOCKED;
+    thread_unblock(t);
+    list_remove(t_elm);
+    return true;
+  }
+  else
+  {
+    return false;
   }
   intr_set_level(old_level);
 }
@@ -120,12 +142,9 @@ void timer_sleep(int64_t ticks)
   int64_t start = timer_ticks();
 
   ASSERT(intr_get_level() == INTR_ON);
-  // while (timer_elapsed(start) < ticks)
-  //   thread_yield();
   struct thread *t = thread_current();
   t->target_ticks = ticks + start;
   thread_push_block(t);
-  thread_yield();
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -195,9 +214,18 @@ void timer_print_stats(void)
 static void
 timer_interrupt(struct intr_frame *args UNUSED)
 {
-  ticks++;
-  thread_tick(timer_ticks(), 0);
-  // thread_pop_unblock();
+  if (unblock_to_be_unblocked_threads())
+  {
+    held_ticks++;
+  }
+  else
+  {
+    ticks += held_ticks;
+    held_ticks = 0;
+    ticks++;
+    thread_tick();
+  }
+  thread_pop_unblock();
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

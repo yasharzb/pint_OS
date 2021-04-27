@@ -119,7 +119,7 @@ void thread_start(void)
 
 /* Called by the timer interrupt handler at each timer tick.
    Thus, this function runs in an external interrupt context. */
-void thread_tick(int64_t timer_ticks, int is_pending)
+void thread_tick()
 {
   struct thread *t = thread_current();
 
@@ -137,10 +137,6 @@ void thread_tick(int64_t timer_ticks, int is_pending)
   if (++thread_ticks >= TIME_SLICE)
   {
     intr_yield_on_return();
-  }
-  if (is_pending && t->target_ticks > timer_ticks)
-  {
-    thread_yield();
   }
 }
 
@@ -236,7 +232,7 @@ bool cmp_target_ticks(const struct list_elem *a, const struct list_elem *b, void
 {
   struct thread *t_a = list_entry(a, struct thread, alarm_elm);
   struct thread *t_b = list_entry(b, struct thread, alarm_elm);
-  return t_a->target_ticks > t_b->target_ticks;
+  return t_a->target_ticks < t_b->target_ticks;
 }
 
 /* Puts the current thread to sleep.  It will not be scheduled
