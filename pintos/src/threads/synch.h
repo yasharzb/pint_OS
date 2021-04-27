@@ -42,7 +42,11 @@ void cond_wait (struct condition *, struct lock *);
 void cond_signal (struct condition *, struct lock *);
 void cond_broadcast (struct condition *, struct lock *);
 
-struct semaphore * get_and_remove_next_sema_for_cond(struct list *list);
+
+bool cond_priority_less_function (const struct list_elem *a,
+                             const struct list_elem *b,
+                             void *aux);
+struct semaphore *get_and_remove_next_sema_for_cond(struct list *list);
 
 /* Optimization barrier.
 

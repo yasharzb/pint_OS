@@ -72,6 +72,9 @@ static void schedule(void);
 void thread_schedule_tail(struct thread *prev);
 static tid_t allocate_tid(void);
 
+static int get_highest_priority(void);
+void thread_yield_if_necessery(void);
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -119,7 +122,7 @@ void thread_start(void)
 
 /* Called by the timer interrupt handler at each timer tick.
    Thus, this function runs in an external interrupt context. */
-void thread_tick(void)
+void thread_tick()
 {
   struct thread *t = thread_current();
 
@@ -135,7 +138,9 @@ void thread_tick(void)
 
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
+  {
     intr_yield_on_return();
+  }
 }
 
 /* Prints thread statistics. */
@@ -168,7 +173,7 @@ tid_t thread_create(const char *name, int priority,
   struct switch_entry_frame *ef;
   struct switch_threads_frame *sf;
   tid_t tid;
-
+  
   ASSERT(function != NULL);
 
   /* Allocate thread. */
@@ -195,7 +200,6 @@ tid_t thread_create(const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
-  
 #ifdef USERPROG
 
   /* set parent */
@@ -218,12 +222,23 @@ tid_t thread_create(const char *name, int priority,
   //Set minimum fd to 2
   t->fd_counter = INITIAL_FD_COUNT;
 
-#endif  
+#endif
 
   /* Add to run queue. */
   thread_unblock(t);
+  
+  /* yield the thread so `t` can run if it has higher priority. */
+  thread_yield_if_necessery();
 
   return tid;
+}
+
+/* Compares two list_elem (each representing a thread) by their target_ticks */
+bool cmp_target_ticks(const struct list_elem *a, const struct list_elem *b, void *aux)
+{
+  struct thread *t_a = list_entry(a, struct thread, alarm_elem);
+  struct thread *t_b = list_entry(b, struct thread, alarm_elem);
+  return t_a->target_ticks < t_b->target_ticks;
 }
 
 /* Puts the current thread to sleep.  It will not be scheduled
@@ -259,6 +274,7 @@ void thread_unblock(struct thread *t)
   ASSERT(t->status == THREAD_BLOCKED);
   list_push_back(&ready_list, &t->elem);
   t->status = THREAD_READY;
+  
   intr_set_level(old_level);
 }
 
@@ -320,7 +336,7 @@ void thread_exit(void)
     close_fd(f->fd, false);
   }
 
-   while (!list_empty(&cur->fd_list))
+  while (!list_empty(&cur->fd_list))
   {
     struct list_elem *e = list_pop_front(&cur->fd_list);
     struct file_descriptor *f = list_entry(e, struct file_descriptor, fd_elem);
@@ -328,7 +344,7 @@ void thread_exit(void)
   }
 
   /* close executable file */
-  if(cur->executable_file)
+  if (cur->executable_file)
     file_close(cur->executable_file);
 
   /* sema up `exited` to let the parent know that the thread has exited */
@@ -343,7 +359,6 @@ void thread_exit(void)
   }
 
   process_exit();
-
 
   /* wait for parent to let the thread die */
   sema_down(&cur->can_free);
@@ -401,12 +416,13 @@ void thread_foreach(thread_action_func *func, void *aux)
 void thread_set_priority(int new_priority)
 {
   thread_current()->priority = new_priority;
+  calculate_priority_and_yield(thread_current());
 }
 
 /* Returns the current thread's priority. */
 int thread_get_priority(void)
 {
-  return thread_current()->priority;
+  return thread_current()->effective_priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -529,12 +545,12 @@ init_thread(struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
   t->effective_priority = priority;
+  list_init(&t->holding_locks_list);
 
 #ifdef USERPROG
   list_init(&t->children_list);
   list_init(&t->fd_list);
 #endif
-  
 
   old_level = intr_disable();
   list_push_back(&all_list, &t->allelem);
@@ -564,7 +580,8 @@ next_thread_to_run(void)
 {
   if (list_empty(&ready_list))
     return idle_thread;
-  else {
+  else
+  {
     return get_and_remove_next_thread(&ready_list);
   }
 }
@@ -659,7 +676,6 @@ struct thread *
 get_thread(tid_t tid)
 {
   struct list_elem *e;
-
   for (e = list_begin(&all_list); e != list_end(&all_list);
        e = list_next(e))
   {
@@ -691,7 +707,6 @@ get_child_thread(tid_t child_tid)
   return NULL;
 }
 
-
 /* A `list_less_func` that compares two threads based on effective
    priority. Usefull for passing to `list_max` function
    in `get_and_remove_next_thread.` 
@@ -699,7 +714,7 @@ get_child_thread(tid_t child_tid)
 bool
 thread_priority_less_function (const struct list_elem *a,
                              const struct list_elem *b,
-                             void *aux) {
+                             void *aux UNUSED) {
   struct thread *thread_a = list_entry (a, struct thread, elem);
   struct thread *thread_b = list_entry (b, struct thread, elem);
 
@@ -707,14 +722,100 @@ thread_priority_less_function (const struct list_elem *a,
 }
 
 
-/* Find the thread with maximum effective priority in `list` 
+/* Find the thread with maximum effective priority in `list`
    and remove it from the list.
    */
-struct thread*
-get_and_remove_next_thread (struct list *list)
+struct thread *
+get_and_remove_next_thread(struct list *list)
 {
   struct list_elem *e = list_max(list, thread_priority_less_function, NULL);
   struct thread *t = list_entry(e, struct thread, elem);
   list_remove(e);
   return t;
 };
+
+/*  Compare `priority` with thread `t` effective priority and update
+    recursively if new priority is greater than current one.
+    Do not call `printf` in this function.
+  */
+void 
+compare_priority_and_update(struct thread *t, int priority) {
+  /* Return if t is null */
+  if(!t) 
+    return;
+
+  /* Return if new priority is lower cause we don't need to update anything */
+  if(t->effective_priority > priority) 
+    return;
+  
+  /* o.w. update effective priority */
+  t->effective_priority = priority;
+
+  /* If thread is waiting for any lock we need to also update priority of 
+    that lock's holder.
+    */
+  if(t->waiting_lock) {
+    struct thread *holder = (t->waiting_lock)->holder;
+    compare_priority_and_update(holder, priority);
+  }
+
+}
+
+/*  Calculate thread `t` effective priority based on thread's self priority
+    and effective priority of threads in waiting list of locks in thread's
+    `holding_locks_list`.
+    Do not call `printf` in this function.
+  */
+void
+calculate_priority_and_yield(struct thread *t) {
+  int new_priority = t->priority;
+
+  /* iterate over locks that thread is holding */
+  struct list_elem *lock_elem;
+  for (lock_elem = list_begin(&t->holding_locks_list);
+        lock_elem != list_end(&t->holding_locks_list);
+        lock_elem = list_next(lock_elem)) {
+    
+    struct lock *l = list_entry(lock_elem, struct lock, holder_elem);
+    /* iterate over threads that are waiting for the lock */
+    struct list_elem *thread_elem;
+    for (thread_elem = list_begin(&(l->semaphore).waiters);
+          thread_elem != list_end(&(l->semaphore).waiters);
+          thread_elem = list_next(thread_elem)) {
+
+      struct thread *thread = list_entry(thread_elem, struct thread, elem);
+      
+      /* Update `new_priority` if priority is higher */
+      if(thread->effective_priority > new_priority)
+        new_priority = thread->effective_priority;
+    }
+  }
+
+  /* Update effective priority */
+  t->effective_priority = new_priority;
+
+  thread_yield_if_necessery();
+}
+
+
+static int
+get_highest_priority() {
+  int highest_priority = PRI_MIN;
+  
+  struct list_elem *e;
+  for (e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(e)) {
+    struct thread *t = list_entry(e, struct thread, elem);
+    if (t->effective_priority > highest_priority)
+      highest_priority = t->effective_priority;
+  }
+  
+  return highest_priority;
+}
+
+/* Yields the cpu if there is a higher priority thread in ready list */
+void
+thread_yield_if_necessery(void)
+{
+  if (get_highest_priority() > thread_current()->effective_priority)
+    thread_yield();
+}
