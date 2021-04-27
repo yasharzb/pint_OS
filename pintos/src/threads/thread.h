@@ -127,7 +127,7 @@ struct thread
 
 
    int effective_priority;          /* Thread's effective priority */
-   struct lock *priority_lock;      /* Lock for changing thread effective priority */
+   struct lock priority_lock;      /* Lock for changing thread effective priority */
    struct list holding_locks_list;  /* List of locks that thread is holding */
    struct lock *waiting_lock;       /* Lock that thread is waiting to acquire */
 };
@@ -175,7 +175,9 @@ void prepare_thread_for_exit(int exit_value);
 bool thread_priority_less_function (const struct list_elem *a,
                              const struct list_elem *b,
                              void *aux);
-
 struct thread *get_and_remove_next_thread(struct list *list);
+
+void compare_priority_and_update(struct thread *t, int priority);
+void calculate_priority_and_yield(struct thread *t);
 
 #endif /* threads/thread.h */
