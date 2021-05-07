@@ -11,7 +11,8 @@
 static struct lock rw_lock;
 static struct lock fd_number_lock;
 
-void file_descriptor_init()
+void
+file_descriptor_init()
 {
   lock_init(&rw_lock);
   lock_init(&fd_number_lock);
@@ -29,7 +30,8 @@ allocate_fd_number(void)
   return fd;
 }
 
-int is_valid_fd(int fd)
+int
+is_valid_fd(int fd)
 {
   if (fd > MAX_FD)
     return -1;
@@ -53,7 +55,8 @@ get_file_from_current_thread(int fd)
   return NULL;
 }
 
-bool remove_file(const char *file_name)
+bool
+remove_file(const char *file_name)
 {
   lock_acquire(&rw_lock);
 
@@ -63,7 +66,8 @@ bool remove_file(const char *file_name)
   return success;
 }
 
-bool create_file(const char *name, off_t initial_size)
+bool
+create_file(const char *name, off_t initial_size)
 {
   lock_acquire(&rw_lock);
 
@@ -73,7 +77,8 @@ bool create_file(const char *name, off_t initial_size)
   return success;
 }
 
-bool close_fd(int fd, bool remove_from_fd_list)
+bool
+close_fd(int fd, bool remove_from_fd_list)
 {
   lock_acquire(&rw_lock);
 
@@ -98,7 +103,7 @@ bool close_fd(int fd, bool remove_from_fd_list)
   return success;
 }
 
-file_descriptor *
+file_descriptor*
 create_file_descriptor(char *file_name, struct thread *cur_thread)
 {
   lock_acquire(&rw_lock);
@@ -123,7 +128,8 @@ create_file_descriptor(char *file_name, struct thread *cur_thread)
   return file_d;
 }
 
-int fd_write(int fd, void *buffer, unsigned size)
+int
+fd_write(int fd, void *buffer, unsigned size)
 {
   lock_acquire(&rw_lock);
 
@@ -141,7 +147,8 @@ int fd_write(int fd, void *buffer, unsigned size)
   return w_bytes_cnt;
 }
 
-int fd_read(int fd, void *buffer, unsigned size)
+int
+fd_read(int fd, void *buffer, unsigned size)
 {
   lock_acquire(&rw_lock);
 
@@ -160,7 +167,8 @@ int fd_read(int fd, void *buffer, unsigned size)
   return read_bytes_cnt;
 }
 
-int size_file(int fd)
+int
+size_file(int fd)
 {
   lock_acquire(&rw_lock);
 
@@ -173,7 +181,8 @@ int size_file(int fd)
   return size;
 }
 
-void seek_file(int fd, unsigned position)
+void
+seek_file(int fd, unsigned position)
 {
   lock_acquire(&rw_lock);
 

@@ -185,4 +185,6 @@ struct thread *get_and_remove_next_thread(struct list *list);
 void compare_priority_and_update(struct thread *t, int priority);
 void calculate_priority_and_yield(struct thread *t);
 
+void thread_yield_if_necessery(void);
+
 #endif /* threads/thread.h */

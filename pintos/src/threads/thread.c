@@ -73,7 +73,7 @@ void thread_schedule_tail(struct thread *prev);
 static tid_t allocate_tid(void);
 
 static int get_highest_priority(void);
-void thread_yield_if_necessery(void);
+
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -816,6 +816,11 @@ get_highest_priority() {
 void
 thread_yield_if_necessery(void)
 {
-  if (get_highest_priority() > thread_current()->effective_priority)
-    thread_yield();
+  if (get_highest_priority() > thread_current()->effective_priority) {
+    if(intr_context())
+      intr_yield_on_return();
+    else
+      thread_yield();
+  }
+    
 }
