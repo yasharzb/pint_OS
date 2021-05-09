@@ -1,3 +1,5 @@
+<<<<<<< HEAD
+=======
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
 
@@ -186,3 +188,4 @@ void compare_priority_and_update(struct thread *t, int priority);
 void calculate_priority_and_yield(struct thread *t);
 
 #endif /* threads/thread.h */
+>>>>>>> parent of 42aab7c... Fix problem with thread yield in userprog tests

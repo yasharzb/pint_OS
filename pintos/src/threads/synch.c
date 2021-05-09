@@ -1,3 +1,5 @@
+<<<<<<< HEAD
+=======
 /* This file is derived from source code for the Nachos
    instructional operating system.  The Nachos copyright notice
    is reproduced in full below. */
@@ -403,3 +405,4 @@ get_and_remove_next_sema_for_cond (struct list *list)
   return s;
 };
 
+>>>>>>> parent of 42aab7c... Fix problem with thread yield in userprog tests

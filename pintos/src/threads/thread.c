@@ -1,3 +1,5 @@
+<<<<<<< HEAD
+=======
 #include "threads/thread.h"
 #include <debug.h>
 #include <stddef.h>
@@ -819,3 +821,4 @@ thread_yield_if_necessery(void)
   if (get_highest_priority() > thread_current()->effective_priority)
     thread_yield();
 }
+>>>>>>> parent of 42aab7c... Fix problem with thread yield in userprog tests
