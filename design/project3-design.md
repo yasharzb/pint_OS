@@ -46,7 +46,26 @@
 داده‌ساختار‌ها و توابع
 ---------------------
 
->>‫ در این قسمت تعریف هر یک از `struct` ها، اعضای `struct` ها، متغیرهای سراسری‫ یا ایستا، `typedef` ها یا `enum` هایی که ایجاد کرده‌اید یا تغییر داده‌اید را بنویسید و‫ دلیل هر کدام را در حداکثر ۲۵ کلمه توضیح دهید.
+>>‫ 
+```c
+struct inode_disk
+  {
+    block_sector_t start;
+    off_t length;
+    unsigned magic;
+    int type;
+    block_sector_t direct_blocks[16];
+    block_sector_t indirect_block;
+    block_sector_t double_indirect_block;
+    uint32_t unused[100];
+  };
+
+struct pointer_block 
+  {
+    block_sector_t blocks[BLOCK_SECTOR_SIZE / 4];
+  };
+
+  ```
 
 >>‫ بیشترین سایز فایل پشتیبانی شده توسط ساختار inode شما چقدر است؟
 
