@@ -59,7 +59,7 @@ struct inode
 
 
 block_sector_t *allocate_k_sectors (size_t k);
-bool extend_inode_disk_to_size (struct inode_disk *disk_inode, size_t size);
+bool extend_inode_disk_to_size (struct inode_disk *disk_inode, off_t size);
 void free_block_sector_array(block_sector_t *arr, size_t k);
 
 /* Returns the block device sector that contains byte offset POS
@@ -186,18 +186,25 @@ allocate_k_sectors(size_t k)
 //}
 
 bool 
-extend_inode_disk_to_size (struct inode_disk *disk_inode, size_t size) 
+extend_inode_disk_to_size (struct inode_disk *disk_inode, off_t size) 
 {
   ASSERT (size < MAX_FILE_SIZE);
+  ASSERT (size >= 0);
 
-  size_t current_sectors = bytes_to_sectors (disk_inode->length);
-  size_t sectors_needed = bytes_to_sectors (size);
+  if (size < disk_inode->length)
+    return true;
 
-  size_t current_indirect_blocks = sectors_to_indirect_blocks (current_sectors);
-  size_t indirect_blocks_needed = sectors_to_indirect_blocks (sectors_needed);
+  off_t current_sectors = bytes_to_sectors (disk_inode->length);
+  off_t sectors_needed = bytes_to_sectors (size);
 
-  size_t new_sectors = sectors_needed - current_sectors;
-  size_t new_indirect_blocks = indirect_blocks_needed - current_indirect_blocks;
+  off_t current_indirect_blocks = sectors_to_indirect_blocks (current_sectors);
+  off_t indirect_blocks_needed = sectors_to_indirect_blocks (sectors_needed);
+
+  off_t new_sectors = sectors_needed - current_sectors;
+  off_t new_indirect_blocks = indirect_blocks_needed - current_indirect_blocks;
+
+  ASSERT (new_sectors >= 0);
+  ASSERT (new_indirect_blocks >= 0);
 
   block_sector_t *sectors = NULL;
   block_sector_t *indirect_blocks = NULL;
@@ -233,13 +240,14 @@ extend_inode_disk_to_size (struct inode_disk *disk_inode, size_t size)
 
   block_read(fs_device, disk_inode->double_indirect_block, double_indirect_block_buffer);
   
-  size_t indirect_block_to_build = current_indirect_blocks;
+  off_t indirect_block_to_build = current_indirect_blocks;
   for (; indirect_block_to_build < indirect_blocks_needed; indirect_block_to_build++)
     double_indirect_block_buffer->blocks[indirect_block_to_build] = 
     indirect_blocks[indirect_block_to_build - current_indirect_blocks];
+  block_write(fs_device, disk_inode->double_indirect_block, double_indirect_block_buffer);
   
   off_t last_indirect_block_ind = -1;
-  for (size_t sector_to_build = current_sectors; sector_to_build < sectors_needed; sector_to_build++)
+  for (off_t sector_to_build = current_sectors; sector_to_build < sectors_needed; sector_to_build++)
     {
       off_t indirect_block_ind = sector_to_build / POINTER_BLOCK_POINTERS_COUNT;
 
@@ -251,7 +259,7 @@ extend_inode_disk_to_size (struct inode_disk *disk_inode, size_t size)
           block_read (fs_device, double_indirect_block_buffer->blocks[indirect_block_ind], indirect_block_buffer);
         }
       
-      size_t sector_ind_in_indirect_block = sector_to_build % POINTER_BLOCK_POINTERS_COUNT;
+      off_t sector_ind_in_indirect_block = sector_to_build % POINTER_BLOCK_POINTERS_COUNT;
       indirect_block_buffer->blocks[sector_ind_in_indirect_block] = sectors[sector_to_build - current_sectors];
     }
   
@@ -301,7 +309,7 @@ inode_create (block_sector_t sector, off_t length)
   disk_inode = calloc (1, sizeof *disk_inode);
   if (disk_inode != NULL)
     {
-      size_t sectors = bytes_to_sectors (length);
+      //size_t sectors = bytes_to_sectors (length);
       // disk_inode->length = length;
       disk_inode->length = 0;
       disk_inode->magic = INODE_MAGIC;
@@ -342,14 +350,19 @@ inode_create (block_sector_t sector, off_t length)
         indirect_sectors = remaining_sectors;
       */
 
-      if (free_map_allocate (sectors, &disk_inode->double_indirect_block))
+      if (free_map_allocate (1, &disk_inode->double_indirect_block))
         {
-          block_write (fs_device, sector, disk_inode);
-          static char zeros[BLOCK_SECTOR_SIZE];
-          block_write (fs_device, disk_inode->double_indirect_block, zeros);
-          success = true;
-
-          extend_inode_disk_to_size(disk_inode, length);
+          //static char zeros[BLOCK_SECTOR_SIZE];
+          //block_write (fs_device, disk_inode->double_indirect_block, zeros);
+          if (extend_inode_disk_to_size(disk_inode, length))
+            {
+              block_write(fs_device, sector, disk_inode);
+              success = true;
+            }
+          else
+            {
+              free_map_release(disk_inode->double_indirect_block, 1);
+            }
         }
       
       free (disk_inode);
@@ -595,7 +608,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       off_t sector_ind = offset / BLOCK_SECTOR_SIZE;
       off_t indirect_block_ind = sector_ind / POINTER_BLOCK_POINTERS_COUNT;
       off_t sector_ind_in_indirect_block = sector_ind % POINTER_BLOCK_POINTERS_COUNT;
-      off_t bytes_left_in_sector = BLOCK_SECTOR_SIZE - offset;
+      off_t bytes_left_in_sector = BLOCK_SECTOR_SIZE - sector_offset;
       off_t chunk_size = bytes_left_in_sector < size ? bytes_left_in_sector : size;
 
       if (last_indirect_block_ind != indirect_block_ind)
@@ -723,7 +736,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   if (size + offset > MAX_FILE_SIZE)
     size = MAX_FILE_SIZE - offset;
   
-  extend_inode_disk_to_size (&inode->data, offset + size);
+  if (!extend_inode_disk_to_size (&inode->data, offset + size))
+    size = inode->data.length - offset;
 
   double_indirect_block_buffer = malloc (BLOCK_SECTOR_SIZE);
   if (double_indirect_block_buffer == NULL)
@@ -741,7 +755,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       off_t sector_ind = offset / BLOCK_SECTOR_SIZE;
       off_t indirect_block_ind = sector_ind / POINTER_BLOCK_POINTERS_COUNT;
       off_t sector_ind_in_indirect_block = sector_ind % POINTER_BLOCK_POINTERS_COUNT;
-      off_t bytes_left_in_sector = BLOCK_SECTOR_SIZE - offset;
+      off_t bytes_left_in_sector = BLOCK_SECTOR_SIZE - sector_offset;
       off_t chunk_size = bytes_left_in_sector < size ? bytes_left_in_sector : size;
 
       if (last_indirect_block_ind != indirect_block_ind)
@@ -806,3 +820,5 @@ inode_length (const struct inode *inode)
 {
   return inode->data.length;
 }
+
+
