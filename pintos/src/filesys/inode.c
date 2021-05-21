@@ -23,13 +23,12 @@ struct pointer_block_disk
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
   {
-    block_sector_t start;               /* First data sector. */
-    off_t length;                       /* File size in bytes. */
-    unsigned magic;                     /* Magic number. */
-    uint32_t unused[123];               /* Not used. */
-
-    int type;
-    block_sector_t double_indirect_block;
+    block_sector_t start;                 /* First data sector. */
+    off_t length;                         /* File size in bytes. */
+    unsigned magic;                       /* Magic number. */
+    uint32_t isDir;                       /* File is directory or not */
+    block_sector_t double_indirect_block; /* Sector number of double pointer sector */
+    uint32_t unused[123];                 /* Not used. */
   };
 
 /* Returns the number of sectors to allocate for an inode SIZE
@@ -367,6 +366,9 @@ inode_length (const struct inode *inode)
   return inode->data.length;
 }
 
+
+/********************** NEW FUNCTIONS ***********************/
+
 static inline size_t
 sectors_to_indirect_blocks (size_t sectors)
 {
@@ -386,13 +388,13 @@ allocate_k_sectors(size_t k)
   block_sector_t *sectors = NULL;
   sectors = calloc(k, sizeof (block_sector_t));
   if (sectors != NULL) {
-    size_t sector = 0;
-    for (; sector < k; sector++)
-        if (!free_map_allocate(1, &sectors[sector]))
+    size_t sectors_len = 0;
+    for (; sectors_len < k; sectors_len++)
+        if (!free_map_allocate(1, &sectors[sectors_len]))
           break;
-    if (sector < k) 
+    if (sectors_len < k) 
       {
-        free_block_sector_array(sectors, k);
+        free_block_sector_array(sectors, sectors_len);
         free(sectors);
         return NULL;
       }
