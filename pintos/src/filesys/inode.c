@@ -6,6 +6,7 @@
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
+#include "threads/synch.h"
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
@@ -25,11 +26,10 @@ struct inode_disk
     block_sector_t start;               /* First data sector. */
     off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
-    // uint32_t unused[125];               /* Not used. */
+    uint32_t unused[123];               /* Not used. */
 
     int type;
     block_sector_t double_indirect_block;
-    uint32_t unused[123];
   };
 
 /* Returns the number of sectors to allocate for an inode SIZE
@@ -50,7 +50,7 @@ struct inode
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /* Inode content. */
 
-    struct lock access_lock;            /* lock for read/write synchronization */
+    // struct lock access_lock;            /* lock for read/write synchronization */
   };
 
 
@@ -157,6 +157,7 @@ inode_open (block_sector_t sector)
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
+  // lock_init(&inode->access_lock);
   block_read (fs_device, inode->sector, &inode->data);
   return inode;
 }
@@ -586,11 +587,11 @@ inode_close_new (struct inode *inode)
               off_t sector_ind_in_indirect_block = i % POINTER_BLOCK_POINTERS_COUNT;
               free_map_release (indirect_block_buffer->blocks[sector_ind_in_indirect_block], 1);
             }
-          free(indirect_block_buffer);
+          free (indirect_block_buffer);
           
           for (off_t i = 0; i < indirect_blocks; i++)
             free_map_release (double_indirect_block_buffer->blocks[i], 1);
-          free(double_indirect_block_buffer);
+          free (double_indirect_block_buffer);
           
           free_map_release (inode->data.double_indirect_block, 1);
           free_map_release (inode->sector, 1);
@@ -611,17 +612,19 @@ inode_read_at_new (struct inode *inode, void *buffer_, off_t size, off_t offset)
   struct pointer_block_disk *indirect_block_buffer = NULL;
   void *sector_buffer = NULL;
 
+  // lock_acquire (&inode->access_lock);
+
   if (offset > inode->data.length)
     goto done;
   
   if (size + offset > inode->data.length)
     size = inode->data.length - offset;
 
-  double_indirect_block_buffer = malloc(BLOCK_SECTOR_SIZE);
+  double_indirect_block_buffer = malloc (BLOCK_SECTOR_SIZE);
   if (double_indirect_block_buffer == NULL)
     goto done;
 
-  indirect_block_buffer = malloc(BLOCK_SECTOR_SIZE);
+  indirect_block_buffer = malloc (BLOCK_SECTOR_SIZE);
   if (indirect_block_buffer == NULL)
     goto done;
 
@@ -660,6 +663,8 @@ inode_read_at_new (struct inode *inode, void *buffer_, off_t size, off_t offset)
       offset += chunk_size;
       size -= chunk_size;
     }
+  
+  // lock_release (&inode->access_lock);
 
 done:
   if (double_indirect_block_buffer != NULL)
@@ -681,6 +686,8 @@ inode_write_at_new (struct inode *inode, const void *buffer_, off_t size,
   struct pointer_block_disk *double_indirect_block_buffer = NULL;
   struct pointer_block_disk *indirect_block_buffer = NULL;
   void *sector_buffer = NULL;
+
+  // lock_acquire (&inode->access_lock);
 
   if (inode->deny_write_cnt)
     goto done;
@@ -744,6 +751,8 @@ inode_write_at_new (struct inode *inode, const void *buffer_, off_t size,
       offset += chunk_size;
       size -= chunk_size;
     }
+
+  // lock_release (&inode->access_lock);
   
 done:
   if (double_indirect_block_buffer != NULL)  
