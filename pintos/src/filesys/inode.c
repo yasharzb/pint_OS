@@ -60,6 +60,7 @@ struct inode
 
 block_sector_t *allocate_k_sectors (size_t k);
 bool extend_inode_disk_to_size (struct inode_disk *disk_inode, size_t size);
+void free_block_sector_array(block_sector_t *arr, size_t k);
 
 /* Returns the block device sector that contains byte offset POS
    within INODE.
@@ -133,6 +134,12 @@ sectors_to_indirect_blocks (size_t sectors)
   return DIV_ROUND_UP (sectors, POINTER_BLOCK_POINTERS_COUNT);
 }
 
+void 
+free_block_sector_array(block_sector_t *arr, size_t k)
+{
+  for (size_t i = 0; i < k; i++)
+    free_map_release(arr[i], 1);
+}
 
 block_sector_t *
 allocate_k_sectors(size_t k) 
@@ -146,8 +153,7 @@ allocate_k_sectors(size_t k)
           break;
     if (sector < k) 
       {
-        for (size_t sector_ind = 0; sector_ind < k; sector_ind++)
-          free_map_release(sectors[sector_ind], 1);
+        free_block_sector_array(sectors, k);
         free(sectors);
         return NULL;
       }
@@ -232,11 +238,8 @@ extend_inode_disk_to_size (struct inode_disk *disk_inode, size_t size)
     double_indirect_block_buffer->blocks[indirect_block_to_build] = 
     indirect_blocks[indirect_block_to_build - current_indirect_blocks];
   
-  size_t sector_to_build = current_sectors;
-
   off_t last_indirect_block_ind = -1;
-
-  while (sector_to_build < sectors_needed) 
+  for (size_t sector_to_build = current_sectors; sector_to_build < sectors_needed; sector_to_build++)
     {
       off_t indirect_block_ind = sector_to_build / POINTER_BLOCK_POINTERS_COUNT;
 
@@ -251,15 +254,26 @@ extend_inode_disk_to_size (struct inode_disk *disk_inode, size_t size)
       size_t sector_ind_in_indirect_block = sector_to_build % POINTER_BLOCK_POINTERS_COUNT;
       indirect_block_buffer->blocks[sector_ind_in_indirect_block] = sectors[sector_to_build - current_sectors];
     }
+  
+  if (last_indirect_block_ind != -1)
+    block_write(fs_device, double_indirect_block_buffer->blocks[last_indirect_block_ind], indirect_block_buffer);
 
-   success = true;
+  success = true;
 
 done:
 
   if (sectors != NULL)
-    free (sectors);
-  if (indirect_blocks != NULL)
-    free (indirect_blocks);
+    {
+      if (!success)
+        free_block_sector_array(sectors, new_sectors);
+      free (sectors);
+    }
+  if (indirect_blocks != NULL) 
+    {
+      if (!success)
+        free_block_sector_array(indirect_blocks, new_indirect_blocks);
+      free (indirect_blocks);
+    }
   if (indirect_block_buffer != NULL)
     free (indirect_block_buffer);
   if (double_indirect_block_buffer != NULL)
@@ -706,8 +720,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   if (offset > inode->data.length)
     goto done;
   
-  if (size + offset > inode->data.length)
-    size = inode->data.length - offset;
+  if (size + offset > MAX_FILE_SIZE)
+    size = MAX_FILE_SIZE - offset;
   
   extend_inode_disk_to_size (&inode->data, offset + size);
 
