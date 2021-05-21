@@ -711,11 +711,11 @@ inode_read_at_new (struct inode *inode, void *buffer_, off_t size, off_t offset)
           last_indirect_block_ind = indirect_block_ind;
         }
 
-      // if (sector_offset == 0 && chunk_size == BLOCK_SECTOR_SIZE)
-      //   {
-      //     block_write (fs_device, indirect_block_buffer->blocks[sector_ind_in_indirect_block], buffer + bytes_read);
-      //   }
-      // else
+      if (sector_offset == 0 && chunk_size == BLOCK_SECTOR_SIZE)
+        {
+          block_read (fs_device, indirect_block_buffer->blocks[sector_ind_in_indirect_block], buffer + bytes_read);
+        }
+      else
         {
           if (sector_buffer == NULL)
             sector_buffer = malloc(BLOCK_SECTOR_SIZE);
@@ -757,14 +757,17 @@ inode_write_at_new (struct inode *inode, const void *buffer_, off_t size,
   if (size == 0)
     goto done;
   
-  if (offset > inode->data.length)
-    goto done;
   
   if (size + offset > MAX_FILE_SIZE)
     size = MAX_FILE_SIZE - offset;
   
   if (!extend_inode_disk_to_size (inode->sector, &inode->data, offset + size))
-    size = inode->data.length - offset;
+    {
+      if (offset < inode->data.length)
+        size = inode->data.length - offset;
+      else
+        goto done;
+    }
 
   double_indirect_block_buffer = malloc (BLOCK_SECTOR_SIZE);
   if (double_indirect_block_buffer == NULL)
@@ -791,11 +794,11 @@ inode_write_at_new (struct inode *inode, const void *buffer_, off_t size,
           last_indirect_block_ind = indirect_block_ind;
         }
 
-      // if (sector_offset == 0 && chunk_size == BLOCK_SECTOR_SIZE)
-      //   {
-      //     block_write (fs_device, indirect_block_buffer->blocks[sector_ind_in_indirect_block], buffer + bytes_written);
-      //   }
-      // else
+      if (sector_offset == 0 && chunk_size == BLOCK_SECTOR_SIZE)
+        {
+          block_write (fs_device, indirect_block_buffer->blocks[sector_ind_in_indirect_block], buffer + bytes_written);
+        }
+      else
         {
           if (sector_buffer == NULL)
             sector_buffer = malloc(BLOCK_SECTOR_SIZE);
