@@ -8,8 +8,7 @@ static int cache_size;
 static struct list_elem *cache_pointer;
 
 static void write_back(cache *ca);
-static void remove_cache(cache *ca);
-static void clock_alg_replace(void);
+static void apply_clock_algorithm(void);
 static bool index_cmp(const struct list_elem *a,
                       const struct list_elem *b, void *aux UNUSED);
 
@@ -38,7 +37,9 @@ void set_cache(block_sector_t index, const uint8_t *buf)
         cache *ca = malloc(sizeof(cache));
         uint8_t *data = malloc(sizeof(uint8_t) * BLOCK_SECTOR_SIZE);
 
-        ca->data = buf;
+        memcpy(data, buf, BLOCK_SECTOR_SIZE);
+        ca->index = index;
+        ca->data = data;
         ca->is_dirty = 0;
         ca->is_used = 1;
 
@@ -72,7 +73,6 @@ void apply_clock_algorithm()
         if (cache_pointer == NULL || cache_pointer == list_end(&cached_blocks))
                 cache_pointer = list_begin(&cached_blocks);
 
-        cache_pointer = list_begin(&cached_blocks);
         while (1)
         {
                 ca = list_entry(cache_pointer, cache, elem);
