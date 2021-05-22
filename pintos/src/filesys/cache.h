@@ -20,5 +20,7 @@ cache *get_cache(block_sector_t index);
 void set_cache(block_sector_t index, const uint8_t *buf);
 void update_cache(cache *ca, const uint8_t *buf, int offset, int size);
 void remove_cache(cache *ca);
+static void write_back(cache *ca);
+static void clock_alg_replace(void);
 
 #endif

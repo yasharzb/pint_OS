@@ -7,11 +7,10 @@ static struct list cached_blocks;
 static int cache_size;
 static struct list_elem *cache_pointer;
 
-static void write_back(cache *ca);
-static void remove_cache(cache *ca);
-static void clock_alg_replace(void);
 static bool index_cmp(const struct list_elem *a,
                       const struct list_elem *b, void *aux UNUSED);
+
+
 
 void init_cache(void)
 {
