@@ -1,5 +1,4 @@
 #include "filesys/inode.h"
-#include <list.h>
 #include <debug.h>
 #include <round.h>
 #include <string.h>
@@ -8,29 +7,6 @@
 #include "threads/malloc.h"
 #include "threads/synch.h"
 
-/* Identifies an inode. */
-#define INODE_MAGIC 0x494e4f44
-
-#define POINTER_BLOCK_POINTERS_COUNT (BLOCK_SECTOR_SIZE / 4)
-#define MAX_FILE_SIZE ((POINTER_BLOCK_POINTERS_COUNT) * (POINTER_BLOCK_POINTERS_COUNT) * (BLOCK_SECTOR_SIZE))
-
-struct pointer_block_disk
-  {
-    block_sector_t blocks[POINTER_BLOCK_POINTERS_COUNT];
-  };
-
-/* On-disk inode.
-   Must be exactly BLOCK_SECTOR_SIZE bytes long. */
-struct inode_disk
-  {
-    block_sector_t start;                 /* First data sector. */
-    off_t length;                         /* File size in bytes. */
-    unsigned magic;                       /* Magic number. */
-    uint32_t isDir;                       /* File is directory or not */
-    block_sector_t double_indirect_block; /* Sector number of double pointer sector */
-    uint32_t unused[123];                 /* Not used. */
-  };
-
 /* Returns the number of sectors to allocate for an inode SIZE
    bytes long. */
 static inline size_t
@@ -38,19 +14,6 @@ bytes_to_sectors (off_t size)
 {
   return DIV_ROUND_UP (size, BLOCK_SECTOR_SIZE);
 }
-
-/* In-memory inode. */
-struct inode
-  {
-    struct list_elem elem;              /* Element in inode list. */
-    block_sector_t sector;              /* Sector number of disk location. */
-    int open_cnt;                       /* Number of openers. */
-    bool removed;                       /* True if deleted, false otherwise. */
-    int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
-    struct inode_disk data;             /* Inode content. */
-
-    // struct lock access_lock;            /* lock for read/write synchronization */
-  };
 
 
 block_sector_t *allocate_k_sectors (size_t k);
@@ -515,7 +478,7 @@ done:
 
 
 bool
-inode_create_new (block_sector_t sector, off_t length)
+inode_create_new (block_sector_t sector, off_t length, int isDir)
 {
   struct inode_disk *disk_inode = NULL;
   bool success = false;
@@ -531,6 +494,7 @@ inode_create_new (block_sector_t sector, off_t length)
     {
       disk_inode->length = 0;
       disk_inode->magic = INODE_MAGIC;
+      disk_inode->isDir = isDir;
 
       if (free_map_allocate (1, &disk_inode->double_indirect_block))
         {
@@ -768,9 +732,9 @@ done:
 
 
 bool
-inode_create (block_sector_t sector, off_t length)
+inode_create (block_sector_t sector, off_t length, int isDir)
 {
-  return inode_create_new (sector, length);
+  return inode_create_new (sector, length, isDir);
 }
 
 

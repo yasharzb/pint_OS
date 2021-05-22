@@ -22,6 +22,7 @@
 static struct semaphore temporary;
 static thread_func start_process NO_RETURN;
 static bool load(const char *cmdline, void (**eip)(void), void **esp);
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -59,6 +60,11 @@ tid_t process_execute(const char *cmdline)
     tid = thread_create(file_name, PRI_DEFAULT, start_process, fn_copy);
     if (tid == TID_ERROR)
         palloc_free_page(fn_copy);
+    
+    /* Set working directory */
+    struct dir *parent_wd = thread_current()->working_directory;
+    if(parent_wd)
+        get_thread(tid)->working_directory = dir_reopen(parent_wd);
 
     if (tid != TID_ERROR)
         sema_down(&get_thread(tid)->load_done);
