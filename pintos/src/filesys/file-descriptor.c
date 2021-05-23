@@ -71,7 +71,7 @@ create_file(const char *name, off_t initial_size)
 {
   lock_acquire(&rw_lock);
 
-  bool success = filesys_create(name, initial_size);
+  bool success = filesys_create(name, initial_size, 0);
 
   lock_release(&rw_lock);
   return success;
