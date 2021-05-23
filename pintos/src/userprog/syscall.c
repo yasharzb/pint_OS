@@ -15,6 +15,7 @@
 #include "devices/input.h"
 #include "devices/shutdown.h"
 #include "threads/malloc.h"
+#include "lib/stdio.h"
 
 static void syscall_handler(struct intr_frame *);
 

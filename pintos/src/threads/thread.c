@@ -219,8 +219,11 @@ tid_t thread_create(const char *name, int priority,
   t->load_success_status = false;
   t->wait_on_called = false;
 
-  //Set minimum fd to 2
+  /* set minimum fd to INITIAL_FD_COUNT */
   t->fd_counter = INITIAL_FD_COUNT;
+
+  /* set default working directory. Can't use `dir_open_root` here. why? Idk but it throw errors. */
+  t->working_directory = NULL;
 
 #endif
 
@@ -342,6 +345,10 @@ void thread_exit(void)
     struct file_descriptor *f = list_entry(e, struct file_descriptor, fd_elem);
     palloc_free_page(f);
   }
+
+  /* close  working directory */
+  dir_close(cur->working_directory);
+
 
   /* close executable file */
   if (cur->executable_file)
@@ -823,4 +830,18 @@ thread_yield_if_necessery(void)
       thread_yield();
   }
     
+}
+
+struct dir*
+get_working_directory()
+{
+  if(thread_current()->working_directory)
+    return thread_current()->working_directory;
+
+  // TODO
+  /* If it's first time this function is called set the wd so it 
+    only get opened once. o.w. we need to be carefull to close it everytime
+    we call this function. Idk. maybe change this? */
+  thread_current()->working_directory = dir_open_root();
+  return thread_current()->working_directory;
 }

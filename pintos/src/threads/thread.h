@@ -8,6 +8,8 @@
 #include "threads/synch.h"
 #include "threads/fixed-point.h"
 #include "filesys/file-descriptor.h"
+#include "filesys/directory.h"
+
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -98,40 +100,42 @@ struct thread
    /* Shared between thread.c and synch.c. */
    struct list_elem elem; /* List element. */
 
-#ifdef USERPROG
+// #ifdef USERPROG
    /* Owned by userprog/process.c. */
    uint32_t *pagedir; /* Page directory. */
-#endif
+// #endif
 
    /* Owned by thread.c. */
    unsigned magic; /* Detects stack overflow. */
 
    tid_t parent_tid; /* Parent thread tid */
 
-   struct list children_list;   /* list of thread children */
+   struct list children_list;   /* List of thread children */
    struct list_elem child_elem; /* List element for children_list */
 
-   struct semaphore exited; /* semaphore for knowing if thread exited in wait */
-   int exit_value;          /* exit value of process */
+   struct semaphore exited; /* Semaphore for knowing if thread exited in wait */
+   int exit_value;          /* Exit value of process */
 
-   bool wait_on_called;       /* true if parent already wait on process */
-   struct semaphore can_free; /* semaphore to know if thread struct can be freed */
+   bool wait_on_called;       /* True if parent already wait on process */
+   struct semaphore can_free; /* Semaphore to know if thread struct can be freed */
 
-   bool load_success_status;   /* status of loading of executable file */
-   struct semaphore load_done; /* semaphore to know if executable has finished loading in exec */
+   bool load_success_status;   /* Status of loading of executable file */
+   struct semaphore load_done; /* Semaphore to know if executable has finished loading in exec */
 
-   struct file *executable_file; /* thread executable file */
+   struct file *executable_file; /* Thread executable file */
 
-   /* for storing file_descriptors */
-   int fd_counter;
-   struct list fd_list;
+   int fd_counter;      /* Thread current file descriptors count */
+   struct list fd_list; /* Thread file descriptors list */
 
-   int effective_priority;         /* Thread's effective priority */
+   int effective_priority;         /* Thread effective priority */
    struct list holding_locks_list; /* List of locks that thread is holding */
    struct lock *waiting_lock;      /* Lock that thread is waiting to acquire */
    
    int64_t target_ticks;         /* Tick at which thread must wake up if it is sleep */
    struct list_elem alarm_elem;  /* List elem for storing thread in sleep_threads_list */
+
+   struct dir *working_directory; /* Thread working directory - NULL means root dir.
+                                     Access it using `get_working_directory` function. */
 };
 
 /* If false (default), use round-robin scheduler.
@@ -186,5 +190,7 @@ void compare_priority_and_update(struct thread *t, int priority);
 void calculate_priority_and_yield(struct thread *t);
 
 void thread_yield_if_necessery(void);
+
+struct dir* get_working_directory(void);
 
 #endif /* threads/thread.h */
