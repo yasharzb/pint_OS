@@ -50,7 +50,7 @@ void set_cache(block_sector_t index, const uint8_t *buf)
 }
 void update_cache(cache *ca, const uint8_t *buf, int offset, int size)
 {
-        memcpy(ca->data, buf + offset, size);
+        memcpy(ca->data + offset, buf, size);
         ca->is_dirty = 1;
         ca->is_used = 1;
 }
