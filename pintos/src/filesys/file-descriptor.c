@@ -207,3 +207,47 @@ tell_file(int fd)
   lock_release(&rw_lock);
   return tell;
 }
+
+bool
+fd_readdir(int fd, void *buffer)
+{
+  lock_acquire(&rw_lock);
+
+  bool situation = 0;
+
+  fd = is_valid_fd(fd);
+  if (fd != -1)
+  {
+
+    file_descriptor *f = get_file_from_current_thread(fd);
+
+    if (f != NULL)
+      situation = read_dir(f, buffer);
+  }
+
+  lock_release(&rw_lock);
+
+  return situation;
+}
+
+bool
+fd_isdir(int fd)
+{
+  lock_acquire(&rw_lock);
+
+  bool situation = 0;
+
+  fd = is_valid_fd(fd);
+  if (fd != -1)
+  {
+
+    file_descriptor *f = get_file_from_current_thread(fd);
+
+    if (f != NULL)
+      situation = read_dir(f);
+  }
+
+  lock_release(&rw_lock);
+
+  return situation;
+}

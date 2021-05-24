@@ -36,4 +36,7 @@ int fd_write(int fd, void *buffer, unsigned size);
 int fd_read(int fd, void *buffer, unsigned size);
 bool close_fd(int fd, bool remove_from_fd_list);
 
+bool fd_readdir(int fd, void* buffer);
+bool fd_isdir(int fd);
+
 #endif /* filesys/file-descriptor.h */

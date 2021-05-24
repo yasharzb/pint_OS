@@ -5,6 +5,7 @@
 #include <list.h>
 #include "filesys/off_t.h"
 #include "devices/block.h"
+#include "filesys/file.h"
 
 struct bitmap;
 
