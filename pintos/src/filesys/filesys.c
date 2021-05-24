@@ -7,7 +7,7 @@
 #include "filesys/inode.h"
 #include "threads/malloc.h"
 #include "threads/thread.h"
-#include "filesys/directory.h"
+//#include "filesys/directory.h"
 
 
 

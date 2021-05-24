@@ -244,7 +244,7 @@ fd_isdir(int fd)
     file_descriptor *f = get_file_from_current_thread(fd);
 
     if (f != NULL)
-      situation = read_dir(f);
+      situation = is_dir(f);
   }
 
   lock_release(&rw_lock);
