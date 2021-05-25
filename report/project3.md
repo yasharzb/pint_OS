@@ -185,65 +185,58 @@ Powering off...
 
 </div>
 
-تست دوم به نام `full-bw` پیاده‌سازی شده است. در این تست پس از باز کردن تعداد `read_cnt`ها را بدست می‌آوریم سپس فراخوانی سیستمی `write` را صدا می‌زنیم در نهایت مجدد `blk_cread_cnt` را صدا می‌زنیم و تفاضل آن با پیش از عملیات نوشتهن را بدست می‌آوریم. مطابق انتظار این تفاضل باید صفر باشد که یعنی هیچ رجوعی به تابع `block_read` نبوده است. برای سنجش تعداد نوشتن‌ها هم `SYS_BLK_WR_CNT` به‌عنوان فراخوانی سیستم پیاده‌سازی شده است که تابع `blk_wr_cnt` را صدا می‌زند. خروجی این تابع نیز باید معادل سایز فایل ضربدر دو (بعلت نیم‌کیلوبایتی بودن قطعات دیسک) باشد.‌
+تست دوم به نام `full-bw` پیاده‌سازی شده است. در این تست ابتدا یک فایل ایجاد می‌کنیم سپس آن را باز کرده و بایت به بایت می‌نویسیم تا تمامی کش‌ها کثیف شوند. سپس بایت به بایت شروع به خواندن می‌کنیم. چون تابع `set_cache` مدام صدا زده می‌شود و تمامی کش‌ها کثیف هستند پس مرتبا `write_back` خواهیم داشت که این یعنی به این حدود نوشتن. در تست بررسی شده که این بین ۱۲۸ تا ۱۲۸+۶۴ باشد.‌
 
 خروجی تست سوم:
 
 <div dir="ltr">
 
 ```
-Copying tests/filesys/extended/full-bw to scratch partition...
-Copying tests/filesys/extended/tar to scratch partition...
-Copying ../../tests/sample_1hk.txt to scratch partition...
-qemu-system-i386 -device isa-debug-exit -hda /tmp/bkkoOQNVu3.dsk -hdb tmp.dsk -m 4 -net none -nographic -monitor null
-PiLo hda1^M
-Loading............^M
+Loading............
 Kernel command line: -q -f extract run full-bw
 Pintos booting with 3,968 kB RAM...
 367 pages available in kernel pool.
 367 pages available in user pool.
-Calibrating timer...  569,344,000 loops/s.
-hda: 1,008 sectors (504 kB), model "QM00001", serial "QEMU HARDDISK"
-hda1: 192 sectors (96 kB), Pintos OS kernel (20)
-hda2: 441 sectors (220 kB), Pintos scratch (22)
-hdb: 5,040 sectors (2 MB), model "QM00002", serial "QEMU HARDDISK"
-hdb1: 4,096 sectors (2 MB), Pintos file system (21)
-filesys: using hdb1
-scratch: using hda2
+Calibrating timer...  907,673,600 loops/s.
+hda: 5,040 sectors (2 MB), model "QM00001", serial "QEMU HARDDISK"
+hda1: 201 sectors (100 kB), Pintos OS kernel (20)
+hda2: 4,096 sectors (2 MB), Pintos file system (21)
+hda3: 112 sectors (56 kB), Pintos scratch (22)
+filesys: using hda2
+scratch: using hda3
 Formatting file system...done.
 Boot complete.
 Extracting ustar archive from scratch device into file system...
 Putting 'full-bw' into the file system...
-Putting 'tar' into the file system...
-Putting 'sample_1hk.txt' into the file system...
 Erasing ustar archive...
 Executing 'full-bw':
 (full-bw) begin
-(full-bw) block_read operation didn't happen
+(full-bw) 2
 (full-bw) block_write operation invokation count matches the exception
-(full-bw) end
-full-bw: exit(0)
+(full-bw) block_write operation invokation count matches the exception: FAILED
+full-bw: exit(1)
 Execution of 'full-bw' complete.
-Timer: 78 ticks
-Thread: 48 idle ticks, 29 kernel ticks, 1 user ticks
-hdb1 (filesys): 48 reads, 1088 writes
-hda2 (scratch): 440 reads, 2 writes
-Console: 1146 characters output
+Timer: 3775 ticks
+Thread: 3537 idle ticks, 35 kernel ticks, 203 user ticks
+hda2 (filesys): 263726 reads, 776 writes
+hda3 (scratch): 111 reads, 2 writes
+Console: 1031 characters output
 Keyboard: 0 keys pressed
 Exception: 0 page faults
 Powering off...
+
 ~                      
 ```
 
 </div>
 
 درمورد تجربه نوشتن تست برای pintos هم باید گفت:
-یاشار لذت برد.
+یاشار لذت برد. مهرانه گفت افتضاح بود :)
 
 به صورت کلی تست‌های pintos از ۳ بخش تشکیل شده‌اند:
 * کد c که منطق تست را داراست و می‌توان از ماکروهای `CHECK` و `ASSERT` برای سنجش خروجی استفاده کرد. 
 * با استفاده از زبان پرل(؟) یک فایل `ck` نوشته می‌شود که در بدنه‌ی آن خروجی موردانتظار چاپ‌شده‌ی تست قرار دارد.
-* یک فایل `test-persistence.ck` که  خود مستند انگلیسی هم چندان توضیح مناسبی نداده بود اما بهرحال حضورش برای تست لازم است.
+* یک فایل `test-persistence.ck` که  خود مستند انگلیسی هم چندان توضیح مناسبی نداده بود اما بهرحال حضورش برای تست لازم است. به صورت کلی این‌ها چک می‌کنند که آیا فایل باقی‌ماند یا خیر. برای این مورد تابع `write_back-all` در `cache.c` پیاده‌سازی شده است.
 
 ایرادهای هسته:
 * یکی اینکه اسم فایل ورودی می‌بایست کمترمساوی ۱۴ تا باشد. هنگامی که تست `full-bw` را نوشتم در ابتدا برای فایل ۱۰۰ کیلوبایتی از نام `sample-100k.txt` استفاده کردم که دچار وحشت هسته شد.
