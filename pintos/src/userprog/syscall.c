@@ -199,6 +199,9 @@ syscall_handler(struct intr_frame *f)
         seek_file((int)args[1], (unsigned)args[2]);
         break;
 
+    case SYS_BLK_READ_CNT:
+        f->eax = fs_device->read_cnt;
+        break;
     default:
         break;
     }
@@ -256,7 +259,7 @@ assign_args(uint32_t *esp)
         how many bytes syscall need to copy and after
         that we will copy args_no *4 bytes */
     uint32_t *buffer = malloc(4);
-    if(!copy_user_mem_to_kernel(esp, buffer, 4, false))
+    if (!copy_user_mem_to_kernel(esp, buffer, 4, false))
     {
         free(buffer);
         return NULL;
@@ -266,7 +269,7 @@ assign_args(uint32_t *esp)
 
     /* copy arguments in user stack to kernel */
     buffer = malloc(copy_size);
-    if(!copy_user_mem_to_kernel(esp, buffer, copy_size, false))
+    if (!copy_user_mem_to_kernel(esp, buffer, copy_size, false))
     {
         free(buffer);
         return NULL;
@@ -399,7 +402,6 @@ bool copy_user_mem_to_kernel(void *src, void *buffer, int size, bool null_termin
 fail:
     return false;
 }
-
 
 int get_syscall_args_count(int syscall)
 {
