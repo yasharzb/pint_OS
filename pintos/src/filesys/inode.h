@@ -2,9 +2,11 @@
 #define FILESYS_INODE_H
 
 #include <stdbool.h>
-#include <list.h>
+#include "lib/kernel/list.h"
 #include "filesys/off_t.h"
 #include "devices/block.h"
+#include "filesys/file.h"
+#include "threads/synch.h"
 
 struct bitmap;
 
@@ -40,9 +42,8 @@ struct inode
     int open_cnt;                       /* Number of openers. */
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
+    struct lock access_lock;            /* lock for read/write synchronization */
     struct inode_disk data;             /* Inode content. */
-
-    // struct lock access_lock;            /* lock for read/write synchronization */
   };
 
 
@@ -58,5 +59,6 @@ off_t inode_write_at (struct inode *, const void *, off_t size, off_t offset);
 void inode_deny_write (struct inode *);
 void inode_allow_write (struct inode *);
 off_t inode_length (const struct inode *);
+block_sector_t byte_to_sector(const struct inode *inode, off_t pos);
 
 #endif /* filesys/inode.h */

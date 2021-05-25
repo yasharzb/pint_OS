@@ -191,6 +191,18 @@ inumber (int fd)
   return syscall1 (SYS_INUMBER, fd);
 }
 
+int
+blk_read_cnt (void)
+{
+  return syscall0 (SYS_BLK_READ_CNT);
+}
+
+int
+blk_wr_cnt (void)
+{
+  return syscall0 (SYS_BLK_WR_CNT);
+}
+
 void*
 sbrk (intptr_t increment)
 {

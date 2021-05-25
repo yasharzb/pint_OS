@@ -17,6 +17,8 @@
 #include "threads/malloc.h"
 #include "lib/stdio.h"
 
+#define MAX_DIR_CHAR 14
+
 static void syscall_handler(struct intr_frame *);
 
 uint32_t *assign_args(uint32_t *esp);
@@ -200,6 +202,57 @@ syscall_handler(struct intr_frame *f)
         seek_file((int)args[1], (unsigned)args[2]);
         break;
 
+    case SYS_BLK_READ_CNT:
+        f->eax = fs_device->read_cnt;
+        break;
+
+    case SYS_BLK_WR_CNT:
+        f->eax = fs_device->write_cnt;
+        break;
+
+    /* bool chdir (char *path) */
+    case SYS_CHDIR:
+        buffer = get_kernel_va_for_user_pointer((void *)args[1], -1);
+        if (buffer == NULL)
+        {
+            success = false;
+            goto kill_process;
+        }
+
+        f->eax = ch_dir(buffer);
+        break;
+
+    /* bool mkdir(char *path)*/
+    case SYS_MKDIR:
+        buffer = get_kernel_va_for_user_pointer((void *)args[1], -1);
+        if (buffer == NULL)
+        {
+            success = false;
+            goto kill_process;
+        }
+
+        f->eax = mk_dir(buffer);
+        break;
+
+    /* bool readdir(int fd, char *name)*/
+    case SYS_READDIR:
+
+        if (!validate_user_pointer((void *)args[2], MAX_DIR_CHAR))
+            goto kill_process;
+
+        f->eax = fd_readdir((int)args[1], (void *)args[2]);
+        break;
+
+    /* bool isdir(int fd)*/
+    case SYS_ISDIR:
+        f->eax = fd_isdir((int)args[1]);
+        break;
+
+    /* int inumber (int fd) */
+    case SYS_INUMBER:
+        f->eax = fd_get_inumber((int)args[1]);
+        break;
+
     default:
         break;
     }
@@ -257,7 +310,7 @@ assign_args(uint32_t *esp)
         how many bytes syscall need to copy and after
         that we will copy args_no *4 bytes */
     uint32_t *buffer = malloc(4);
-    if(!copy_user_mem_to_kernel(esp, buffer, 4, false))
+    if (!copy_user_mem_to_kernel(esp, buffer, 4, false))
     {
         free(buffer);
         return NULL;
@@ -267,7 +320,7 @@ assign_args(uint32_t *esp)
 
     /* copy arguments in user stack to kernel */
     buffer = malloc(copy_size);
-    if(!copy_user_mem_to_kernel(esp, buffer, copy_size, false))
+    if (!copy_user_mem_to_kernel(esp, buffer, copy_size, false))
     {
         free(buffer);
         return NULL;
@@ -401,7 +454,6 @@ fail:
     return false;
 }
 
-
 int get_syscall_args_count(int syscall)
 {
     int count = 0;
@@ -475,6 +527,31 @@ int get_syscall_args_count(int syscall)
     /* void seek (int fd, unsigned position) */
     case SYS_SEEK:
         count = 2;
+        break;
+
+    /* bool chdir (char *path) */
+    case SYS_CHDIR:
+        count = 1;
+        break;
+
+    /* bool mkdir(char *path)*/
+    case SYS_MKDIR:
+        count = 1;
+        break;
+    
+    /* bool readdir(int fd, char *name)*/
+    case SYS_READDIR:
+        count = 2;
+        break;
+
+    /* bool isdir(int fd)*/
+    case SYS_ISDIR:
+        count = 1;
+        break;
+    
+    /* int inumber (int fd) */
+    case SYS_INUMBER:
+        count = 1;
         break;
 
     default:

@@ -7,9 +7,17 @@
 #include "filesys/inode.h"
 #include "threads/malloc.h"
 #include "threads/thread.h"
+#include "filesys/cache.h"
+
+bool filesys_create_name (char *name, off_t initial_size, struct dir *dir, bool isDir);
+struct file *filesys_open_name (const char *name);
+bool filesys_remove_name (char *name, struct dir* dir);
+bool is_root_path(const char *path);
 
 /* Partition that contains the file system. */
 struct block *fs_device;
+
+//struct inode;
 
 static void do_format (void);
 
@@ -36,6 +44,7 @@ filesys_init (bool format)
 void
 filesys_done (void)
 {
+  write_back_all_cache();
   free_map_close ();
 }
 
@@ -51,9 +60,27 @@ filesys_create_name (char *name, off_t initial_size, struct dir *dir, bool isDir
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size, isDir)
                   && dir_add (dir, name, inode_sector));
-  if (!success && inode_sector != 0)
-    free_map_release (inode_sector, 1);
   
+  if (!success && inode_sector != 0) {
+    free_map_release (inode_sector, 1);
+    goto done;
+  }
+  
+  if(isDir) {
+    struct dir *new_dir = dir_open(inode_open(inode_sector));
+    success &= dir_add(new_dir, ".", inode_sector);
+    success &= dir_add(new_dir, "..", dir->inode->sector);
+    dir_close(new_dir);
+
+    if(!success) {
+      // dir_remove(new_dir, ".");
+      // dir_remove(new_dir, "..");
+      dir_remove(dir, name);
+    }
+  }
+
+
+done: 
   dir_close (dir);
   free(name);
 
@@ -85,7 +112,7 @@ filesys_create (const char *path, off_t initial_size, bool isDir)
 struct file *
 filesys_open_name (const char *name)
 {
-  struct dir *dir = dir_open_root ();
+  struct dir *dir = dir_open_root (); // TODO should we always look for it from root? Saba: this
   struct inode *inode = NULL;
 
   if (dir != NULL)
@@ -125,7 +152,9 @@ filesys_remove (const char *path)
   struct dir* dir;
   char *name;
   struct inode *inode = get_name_and_dir_from_path(path, &name, &dir);
+
   inode_close(inode);
+
   return filesys_remove_name(name, dir);
 }
 
@@ -138,6 +167,16 @@ do_format (void)
   free_map_create ();
   if (!dir_create (ROOT_DIR_SECTOR, 16)) // TODO do we need to change this or not?
     PANIC ("root directory creation failed");
+
+  struct dir *new_dir = dir_open(inode_open(ROOT_DIR_SECTOR));
+  bool success = dir_add(new_dir, ".", ROOT_DIR_SECTOR) &&
+    dir_add(new_dir, "..", ROOT_DIR_SECTOR);
+
+  dir_close(new_dir);
+
+  if(!success)
+      PANIC ("root directory addition failed");
+
   free_map_close ();
   printf ("done.\n");
 }
@@ -155,11 +194,23 @@ do_format (void)
  */
 struct inode *
 get_name_and_dir_from_path(const char *path, char **file_name, struct dir **file_dir)
-{
+{   
+  /* special case! : root */
+  if(is_root_path(path)) {
+    if(file_dir)
+      *file_dir = dir_open_root();
+    if(file_name) {
+      *file_name = malloc(2*sizeof(char));
+      **file_name = '/';
+      **file_name = 0;
+    }
+    return inode_open (ROOT_DIR_SECTOR);
+  }
+
   struct dir *dir = get_path_initial_directory(path);
   struct inode *mid_inode = NULL;
   struct inode *inode = NULL;
-  
+
   char *token = NULL;
   char *next_token = NULL;
   
@@ -169,7 +220,7 @@ get_name_and_dir_from_path(const char *path, char **file_name, struct dir **file
   int ret = get_path_next_token(&path, &token);
   if(ret <= 0)
     goto fail;
-
+  
   while(dir != NULL) {
     /* find path token inode in dir */
     bool found = dir_lookup (dir, token, &mid_inode);
@@ -183,7 +234,7 @@ get_name_and_dir_from_path(const char *path, char **file_name, struct dir **file
     if(ret == 0) {
       /* if last token is found then we will return it, o.w. inode remains null */
       if(found)
-        inode = inode_reopen(mid_inode);
+        inode = mid_inode;
       
       if(file_name) {
         *file_name = malloc(NAME_MAX + 1);
@@ -198,7 +249,7 @@ get_name_and_dir_from_path(const char *path, char **file_name, struct dir **file
 
     /* if token it's not last token and it's not found in dir then search is failed */
     if(!found)
-     break;
+      break;
 
     /* check if mid path inode is directory */
     if(!(mid_inode->data).isDir)
@@ -218,8 +269,9 @@ fail:
   if(file_name)
     *file_name = NULL;
 
-done:
   inode_close(mid_inode);
+
+done:
   dir_close (dir);
   if(token)
     free(token);
@@ -269,7 +321,7 @@ get_path_next_token(const char **ptr, char **returned_token)
 
   /* Copy from path to token */
   int len = 0;
-  while(*path && (*token) != '/') 
+  while(*path && (*path) != '/') 
   {
     if(len == NAME_MAX) {
       /* File name too long */
@@ -291,4 +343,19 @@ get_path_next_token(const char **ptr, char **returned_token)
   *returned_token = token;
 
   return 1;
+}
+
+/* check if path curresponds to root ie /, //, ////////, ... */
+bool
+is_root_path(const char *path)  {
+  if(strlen(path) == 0)
+    return false;
+
+  int i = 0;
+  while(*(path + i) && *(path + i) == '/')
+    i++;
+
+  if(!*(path + i))
+    return true;
+  return false;
 }

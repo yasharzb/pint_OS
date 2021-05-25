@@ -50,4 +50,7 @@ int inumber (int fd);
 /* Homework 5, Part B. */
 void* sbrk (intptr_t increment);
 
+int blk_read_cnt (void);
+int blk_wr_cnt (void);
+
 #endif /* lib/user/syscall.h */

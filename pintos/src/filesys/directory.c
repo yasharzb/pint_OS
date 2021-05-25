@@ -6,20 +6,6 @@
 #include "filesys/inode.h"
 #include "threads/malloc.h"
 
-/* A directory. */
-struct dir
-  {
-    struct inode *inode;                /* Backing store. */
-    off_t pos;                          /* Current position. */
-  };
-
-/* A single directory entry. */
-struct dir_entry
-  {
-    block_sector_t inode_sector;        /* Sector number of header. */
-    char name[NAME_MAX + 1];            /* Null terminated file name. */
-    bool in_use;                        /* In use or free? */
-  };
 
 /* Creates a directory with space for ENTRY_CNT entries in the
    given SECTOR.  Returns true if successful, false on failure. */
@@ -64,6 +50,7 @@ dir_reopen (struct dir *dir)
 {
   return dir_open (inode_reopen (dir->inode));
 }
+
 
 /* Destroys DIR and frees associated resources. */
 void
@@ -148,6 +135,8 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
+  lock_acquire(&(dir->inode->access_lock));
+
   /* Check NAME for validity. */
   if (*name == '\0' || strlen (name) > NAME_MAX)
     return false;
@@ -175,6 +164,7 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
 
  done:
+  lock_release(&(dir->inode->access_lock));
   return success;
 }
 
@@ -192,6 +182,8 @@ dir_remove (struct dir *dir, const char *name)
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
+  lock_acquire(&(dir->inode->access_lock));
+
   /* Find directory entry. */
   if (!lookup (dir, name, &e, &ofs))
     goto done;
@@ -201,8 +193,27 @@ dir_remove (struct dir *dir, const char *name)
   if (inode == NULL)
     goto done;
 
+  /* Cant remove root! */
+  if(inode->sector == ROOT_DIR_SECTOR)
+      goto done;
+
+  if(inode->data.isDir) {
+    struct dir *to_be_deleted_dir = dir_open(inode_reopen(inode));
+    bool is_empty = is_dir_empty(to_be_deleted_dir);
+    dir_close(to_be_deleted_dir);
+
+    /* if dir is not empty we can't remove it */
+    if (!is_empty) 
+        goto done;
+    
+    /* don't allow removing open directories */
+    if(inode->open_cnt > 1) 
+      goto done;
+  }
+
   /* Erase directory entry. */
   e.in_use = false;
+
   if (inode_write_at (dir->inode, &e, sizeof e, ofs) != sizeof e)
     goto done;
 
@@ -212,6 +223,7 @@ dir_remove (struct dir *dir, const char *name)
 
  done:
   inode_close (inode);
+  lock_release(&(dir->inode->access_lock));
   return success;
 }
 
@@ -226,6 +238,8 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
   while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e)
     {
       dir->pos += sizeof e;
+      if (strcmp(e.name,".") == 0 || strcmp(e.name,"..") == 0)
+        continue;
       if (e.in_use)
         {
           strlcpy (name, e.name, NAME_MAX + 1);
@@ -233,4 +247,21 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
         }
     }
   return false;
+}
+
+
+/* return true if dir contains anything other than "." and ".." */
+bool
+is_dir_empty (struct dir *dir)
+{
+  int pos = 0;
+
+  struct dir_entry e;
+  while (inode_read_at (dir->inode, &e, sizeof e, pos) == sizeof e)
+    {
+      pos += sizeof e;
+      if (e.in_use && strcmp(e.name,".") != 0 && strcmp(e.name,"..") != 0)
+        return false;
+    }
+  return true;
 }

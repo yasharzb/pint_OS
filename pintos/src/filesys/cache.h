@@ -23,4 +23,6 @@ void remove_cache(cache *ca);
 static void write_back(cache *ca);
 static void clock_alg_replace(void);
 
+void write_back_all_cache(void);
+
 #endif
