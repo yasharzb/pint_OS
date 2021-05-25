@@ -198,21 +198,17 @@ dir_remove (struct dir *dir, const char *name)
       goto done;
 
   if(inode->data.isDir) {
-    struct dir *to_be_deleted_dir = dir_open(inode);
-    
-    /* if dir is not empty we can't remove it */
-    if (!is_dir_empty(to_be_deleted_dir)) {
-        dir_close(to_be_deleted_dir);
-        goto done;
-    }
-
-    /* don't allow removing of open directories */
-    if(inode->open_cnt > 1) {
-      dir_close(to_be_deleted_dir);
-      goto done;
-    }
-
+    struct dir *to_be_deleted_dir = dir_open(inode_reopen(inode));
+    bool is_empty = is_dir_empty(to_be_deleted_dir);
     dir_close(to_be_deleted_dir);
+
+    /* if dir is not empty we can't remove it */
+    if (!is_empty) 
+        goto done;
+    
+    /* don't allow removing open directories */
+    if(inode->open_cnt > 1) 
+      goto done;
   }
 
   /* Erase directory entry. */

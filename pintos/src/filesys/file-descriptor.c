@@ -125,7 +125,7 @@ create_file_descriptor(char *file_name, struct thread *cur_thread)
       
       file_d->dir = NULL;
       if(o_file->inode->data.isDir) {
-        file_d->dir = dir_open(o_file->inode);
+        file_d->dir = dir_open(inode_reopen(o_file->inode));
       }
 
       list_push_back(&cur_thread->fd_list, &file_d->fd_elem);

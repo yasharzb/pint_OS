@@ -259,6 +259,8 @@ fail:
   if(file_name)
     *file_name = NULL;
 
+  inode_close(mid_inode);
+
 done:
   dir_close (dir);
   if(token)
