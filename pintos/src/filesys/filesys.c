@@ -127,6 +127,7 @@ filesys_open (const char *path)
 bool
 filesys_remove_name (char *name, struct dir* dir)
 {
+
   bool success = dir != NULL && dir_remove (dir, name);
   dir_close (dir);
   free(name);
@@ -141,7 +142,9 @@ filesys_remove (const char *path)
   struct dir* dir;
   char *name;
   struct inode *inode = get_name_and_dir_from_path(path, &name, &dir);
+
   inode_close(inode);
+
   return filesys_remove_name(name, dir);
 }
 

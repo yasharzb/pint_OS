@@ -119,7 +119,7 @@ inode_open (block_sector_t sector)
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
-  // lock_init(&inode->access_lock);
+  lock_init(&inode->access_lock);
   block_read (fs_device, inode->sector, &inode->data);
   return inode;
 }
@@ -518,6 +518,8 @@ inode_close_new (struct inode *inode)
   if (inode == NULL)
     return;
 
+  lock_acquire(&(inode->access_lock));
+
   /* Release resources if this was the last opener. */
   if (--inode->open_cnt == 0)
     {
@@ -563,8 +565,13 @@ inode_close_new (struct inode *inode)
           free_map_release (inode->sector, 1);
         }
 
+      lock_release(&(inode->access_lock));
       free (inode);
+      return;
     }
+
+  lock_release(&(inode->access_lock));
+  return;
 }
 
 

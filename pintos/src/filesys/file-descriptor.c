@@ -8,24 +8,24 @@
 #include "filesys/filesys.h"
 #include "threads/palloc.h"
 
-static struct lock rw_lock;
+//static struct lock rw_lock;
 static struct lock fd_number_lock;
 
-void
+
 file_descriptor_init()
 {
-  lock_init(&rw_lock);
+  //lock_init(&rw_lock);
   lock_init(&fd_number_lock);
 }
 
 static int
-allocate_fd_number(void)
+allocate_fd_number(struct inode * inode)
 {
   int fd;
 
-  lock_acquire(&fd_number_lock);
+  lock_acquire(&(inode->access_lock));
   fd = thread_current()->fd_counter++;
-  lock_release(&fd_number_lock);
+  lock_release(&(inode->access_lock));
 
   return fd;
 }
@@ -58,29 +58,29 @@ get_file_from_current_thread(int fd)
 bool
 remove_file(const char *file_name)
 {
-  lock_acquire(&rw_lock);
+  ////lock_acquire(&rw_lock);
 
   bool success = filesys_remove(file_name);
 
-  lock_release(&rw_lock);
+  //lock_release(&rw_lock);
   return success;
 }
 
 bool
 create_file(const char *name, off_t initial_size)
 {
-  lock_acquire(&rw_lock);
+  ////lock_acquire(&rw_lock);
 
   bool success = filesys_create(name, initial_size, 0);
 
-  lock_release(&rw_lock);
+  //lock_release(&rw_lock);
   return success;
 }
 
 bool
 close_fd(int fd, bool remove_from_fd_list)
 {
-  lock_acquire(&rw_lock);
+  //lock_acquire(&rw_lock);
 
   bool success = false;
   fd = is_valid_fd(fd);
@@ -102,14 +102,14 @@ close_fd(int fd, bool remove_from_fd_list)
     }
   }
 
-  lock_release(&rw_lock);
+  //lock_acquire(&rw_lock);
   return success;
 }
 
 file_descriptor*
 create_file_descriptor(char *file_name, struct thread *cur_thread)
 {
-  lock_acquire(&rw_lock);
+  //lock_acquire(&rw_lock);
 
   file_descriptor *file_d = NULL;
 
@@ -119,7 +119,7 @@ create_file_descriptor(char *file_name, struct thread *cur_thread)
     file_d = palloc_get_page(0);
     if (file_d != NULL)
     {
-      file_d->fd = allocate_fd_number();
+      file_d->fd = allocate_fd_number(o_file->inode);
       file_d->file_name = file_name;
       file_d->file = o_file;
       
@@ -132,14 +132,14 @@ create_file_descriptor(char *file_name, struct thread *cur_thread)
     }
   }
 
-  lock_release(&rw_lock);
+  //  lock_release(&rw_lock);
   return file_d;
 }
 
 int
 fd_write(int fd, void *buffer, unsigned size)
 {
-  lock_acquire(&rw_lock);
+  //lock_acquire(&rw_lock);
 
   int w_bytes_cnt = -1;
 
@@ -151,14 +151,14 @@ fd_write(int fd, void *buffer, unsigned size)
       w_bytes_cnt = file_write(f_file->file, buffer, size);
   }
 
-  lock_release(&rw_lock);
+  //  lock_release(&rw_lock);
   return w_bytes_cnt;
 }
 
 int
 fd_read(int fd, void *buffer, unsigned size)
 {
-  lock_acquire(&rw_lock);
+  //lock_acquire(&rw_lock);
 
   int read_bytes_cnt = -1;
 
@@ -171,55 +171,55 @@ fd_read(int fd, void *buffer, unsigned size)
       read_bytes_cnt = file_read(f_file->file, buffer, size);
   }
 
-  lock_release(&rw_lock);
+  //  lock_release(&rw_lock);
   return read_bytes_cnt;
 }
 
 int
 size_file(int fd)
 {
-  lock_acquire(&rw_lock);
+  //lock_acquire(&rw_lock);
 
   int size = -1;
   struct file_descriptor *fd_tmp = get_file_from_current_thread(fd);
   if (fd_tmp)
     size = (int)file_length(fd_tmp->file);
 
-  lock_release(&rw_lock);
+  //  lock_release(&rw_lock);
   return size;
 }
 
 void
 seek_file(int fd, unsigned position)
 {
-  lock_acquire(&rw_lock);
+  //lock_acquire(&rw_lock);
 
   struct file_descriptor *fd_tmp = get_file_from_current_thread(fd);
   if (fd_tmp)
     file_seek(fd_tmp->file, position);
 
-  lock_release(&rw_lock);
+  //  lock_release(&rw_lock);
   return;
 }
 
 unsigned
 tell_file(int fd)
 {
-  lock_acquire(&rw_lock);
+  //lock_acquire(&rw_lock);
 
   int tell = -1;
   struct file_descriptor *fd_tmp = get_file_from_current_thread(fd);
   if (fd_tmp)
     tell = file_tell(fd_tmp->file);
 
-  lock_release(&rw_lock);
+  //  lock_release(&rw_lock);
   return tell;
 }
 
 bool
 fd_readdir(int fd, void *buffer)
 {
-  lock_acquire(&rw_lock);
+  //lock_acquire(&rw_lock);
 
   bool situation = 0;
 
@@ -233,7 +233,7 @@ fd_readdir(int fd, void *buffer)
       situation = read_dir(f, buffer);
   }
 
-  lock_release(&rw_lock);
+  //  lock_release(&rw_lock);
 
   return situation;
 }

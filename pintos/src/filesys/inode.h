@@ -6,6 +6,7 @@
 #include "filesys/off_t.h"
 #include "devices/block.h"
 #include "filesys/file.h"
+#include "threads/synch.h"
 
 struct bitmap;
 
@@ -41,9 +42,8 @@ struct inode
     int open_cnt;                       /* Number of openers. */
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
+    struct lock access_lock;            /* lock for read/write synchronization */
     struct inode_disk data;             /* Inode content. */
-
-    // struct lock access_lock;            /* lock for read/write synchronization */
   };
 
 

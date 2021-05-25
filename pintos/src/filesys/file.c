@@ -2,6 +2,7 @@
 
 
 
+
 /* Opens a file for the given INODE, of which it takes ownership,
    and returns the new file.  Returns a null pointer if an
    allocation fails or if INODE is null. */
@@ -59,8 +60,10 @@ file_get_inode (struct file *file)
 off_t
 file_read (struct file *file, void *buffer, off_t size)
 {
+  lock_acquire(&(file->inode->access_lock));
   off_t bytes_read = inode_read_at (file->inode, buffer, size, file->pos);
   file->pos += bytes_read;
+  lock_release(&(file->inode->access_lock));
   return bytes_read;
 }
 
@@ -85,8 +88,10 @@ file_read_at (struct file *file, void *buffer, off_t size, off_t file_ofs)
 off_t
 file_write (struct file *file, const void *buffer, off_t size)
 {
+  lock_acquire(&(file->inode->access_lock));
   off_t bytes_written = inode_write_at (file->inode, buffer, size, file->pos);
   file->pos += bytes_written;
+  lock_release(&(file->inode->access_lock));
   return bytes_written;
 }
 
@@ -101,7 +106,12 @@ off_t
 file_write_at (struct file *file, const void *buffer, off_t size,
                off_t file_ofs)
 {
-  return inode_write_at (file->inode, buffer, size, file_ofs);
+  lock_acquire(&(file->inode->access_lock));
+
+  off_t bytes_written = inode_write_at (file->inode, buffer, size, file_ofs);
+
+  lock_release(&(file->inode->access_lock));
+  return bytes_written;
 }
 
 /* Prevents write operations on FILE's underlying inode
