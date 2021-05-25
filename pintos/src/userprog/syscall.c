@@ -202,6 +202,11 @@ syscall_handler(struct intr_frame *f)
     case SYS_BLK_READ_CNT:
         f->eax = fs_device->read_cnt;
         break;
+
+    case SYS_BLK_WR_CNT:
+        f->eax = fs_device->write_cnt;
+        break;
+
     default:
         break;
     }
