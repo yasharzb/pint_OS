@@ -6,7 +6,7 @@
 
 void test_main(void)
 {
-    int fd = open("sample_99k.txt");
+    int fd = open("sample_1hk.txt");
     int read_cnt = blk_read_cnt();
     int wr_cnt = blk_wr_cnt();
     int bytes_written = 0;
