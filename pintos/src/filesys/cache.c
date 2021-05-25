@@ -12,6 +12,8 @@ static void apply_clock_algorithm(void);
 static bool index_cmp(const struct list_elem *a,
                       const struct list_elem *b, void *aux UNUSED);
 
+
+
 void init_cache(void)
 {
         list_init(&cached_blocks);
@@ -93,7 +95,8 @@ void apply_clock_algorithm()
                         cache_pointer = list_begin(&cached_blocks);
         }
 }
-void write_back(cache *ca)
+
+static void write_back(cache *ca)
 {
         block_write(fs_device, ca->index, ca->data);
         ca->is_dirty = 0;

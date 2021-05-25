@@ -12,7 +12,8 @@ void test_main(void)
     int bytes_written = 0;
     char *buf[BLOCK_SECTOR_SIZE];
     int expected_wr_cnt = 0;
-    memset(buf, 'a', BLOCK_SECTOR_SIZE * 1);
+    // memset(buf, 'a', BLOCK_SECTOR_SIZE * 1 );
+    memset(buf, 'a', sizeof buf);
     for (int i = 0; (bytes_written = write(fd, buf, BLOCK_SECTOR_SIZE)) > 0; i++){
         expected_wr_cnt++;
     }

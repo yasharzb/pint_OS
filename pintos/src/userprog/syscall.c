@@ -15,6 +15,9 @@
 #include "devices/input.h"
 #include "devices/shutdown.h"
 #include "threads/malloc.h"
+#include "lib/stdio.h"
+
+#define MAX_DIR_CHAR 14
 
 static void syscall_handler(struct intr_frame *);
 
@@ -205,6 +208,49 @@ syscall_handler(struct intr_frame *f)
 
     case SYS_BLK_WR_CNT:
         f->eax = fs_device->write_cnt;
+        break;
+
+    /* bool chdir (char *path) */
+    case SYS_CHDIR:
+        buffer = get_kernel_va_for_user_pointer((void *)args[1], -1);
+        if (buffer == NULL)
+        {
+            success = false;
+            goto kill_process;
+        }
+
+        f->eax = ch_dir(buffer);
+        break;
+
+    /* bool mkdir(char *path)*/
+    case SYS_MKDIR:
+        buffer = get_kernel_va_for_user_pointer((void *)args[1], -1);
+        if (buffer == NULL)
+        {
+            success = false;
+            goto kill_process;
+        }
+
+        f->eax = mk_dir(buffer);
+        break;
+
+    /* bool readdir(int fd, char *name)*/
+    case SYS_READDIR:
+
+        if (!validate_user_pointer((void *)args[2], MAX_DIR_CHAR))
+            goto kill_process;
+
+        f->eax = fd_readdir((int)args[1], (void *)args[2]);
+        break;
+
+    /* bool isdir(int fd)*/
+    case SYS_ISDIR:
+        f->eax = fd_isdir((int)args[1]);
+        break;
+
+    /* int inumber (int fd) */
+    case SYS_INUMBER:
+        f->eax = fd_get_inumber((int)args[1]);
         break;
 
     default:
@@ -481,6 +527,31 @@ int get_syscall_args_count(int syscall)
     /* void seek (int fd, unsigned position) */
     case SYS_SEEK:
         count = 2;
+        break;
+
+    /* bool chdir (char *path) */
+    case SYS_CHDIR:
+        count = 1;
+        break;
+
+    /* bool mkdir(char *path)*/
+    case SYS_MKDIR:
+        count = 1;
+        break;
+    
+    /* bool readdir(int fd, char *name)*/
+    case SYS_READDIR:
+        count = 2;
+        break;
+
+    /* bool isdir(int fd)*/
+    case SYS_ISDIR:
+        count = 1;
+        break;
+    
+    /* int inumber (int fd) */
+    case SYS_INUMBER:
+        count = 1;
         break;
 
     default:
