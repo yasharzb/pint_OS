@@ -37,8 +37,14 @@ cache *get_cache(block_sector_t index)
 void set_cache(block_sector_t index, const uint8_t *buf)
 {
         cache *ca = malloc(sizeof(cache));
+        if(ca == NULL)
+			return;
         uint8_t *data = malloc(sizeof(uint8_t) * BLOCK_SECTOR_SIZE);
-
+		if(data == NULL) {
+			free(ca);
+			return;
+		}
+        
         memcpy(data, buf, BLOCK_SECTOR_SIZE);
         ca->index = index;
         ca->data = data;
@@ -100,4 +106,17 @@ static void write_back(cache *ca)
 {
         block_write(fs_device, ca->index, ca->data);
         ca->is_dirty = 0;
+}
+
+
+void write_back_all_cache()
+{
+	struct list_elem *e;
+	for (e = list_begin(&cached_blocks); e != list_end(&cached_blocks); e = list_next(e)) {
+		cache *ca = list_entry(e, cache, elem);
+		if (ca->is_dirty)
+		{
+			write_back(ca);
+		}
+	}
 }

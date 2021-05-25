@@ -21,4 +21,6 @@ void set_cache(block_sector_t index, const uint8_t *buf);
 void update_cache(cache *ca, const uint8_t *buf, int offset, int size);
 void remove_cache(cache *ca);
 
+void write_back_all_cache(void);
+
 #endif

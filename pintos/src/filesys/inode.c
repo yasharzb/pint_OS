@@ -394,7 +394,6 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
   struct pointer_block_disk *double_indirect_block_buffer = NULL; 
   struct pointer_block_disk *indirect_block_buffer = NULL;
   void *sector_buffer = NULL;
-  uint8_t *bounce = NULL;
 
   // lock_acquire (&inode->access_lock);
 
@@ -479,7 +478,6 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   struct pointer_block_disk *double_indirect_block_buffer = NULL;
   struct pointer_block_disk *indirect_block_buffer = NULL;
   void *sector_buffer = NULL;
-  uint8_t *bounce = NULL;
 
   // lock_acquire (&inode->access_lock);
 

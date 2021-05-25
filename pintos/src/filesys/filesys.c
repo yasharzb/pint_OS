@@ -7,6 +7,7 @@
 #include "filesys/inode.h"
 #include "threads/malloc.h"
 #include "threads/thread.h"
+#include "filesys/cache.h"
 
 bool filesys_create_name (char *name, off_t initial_size, struct dir *dir, bool isDir);
 struct file *filesys_open_name (const char *name);
@@ -43,6 +44,7 @@ filesys_init (bool format)
 void
 filesys_done (void)
 {
+  write_back_all_cache();
   free_map_close ();
 }
 
