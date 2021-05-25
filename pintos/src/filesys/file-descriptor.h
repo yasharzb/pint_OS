@@ -20,7 +20,8 @@ typedef struct file_descriptor
    struct list_elem fd_elem;
 } file_descriptor;
 
-//void file_descriptor_init(void);
+void file_descriptor_init(void);
+
 
 file_descriptor *create_file_descriptor(char *file_name, struct thread *cur_thread);
 file_descriptor *get_file_from_current_thread(int fd);

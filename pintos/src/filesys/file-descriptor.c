@@ -11,7 +11,7 @@
 //static struct lock rw_lock;
 static struct lock fd_number_lock;
 
-
+void
 file_descriptor_init()
 {
   //lock_init(&rw_lock);
@@ -19,13 +19,13 @@ file_descriptor_init()
 }
 
 static int
-allocate_fd_number(struct inode * inode)
+allocate_fd_number()
 {
   int fd;
 
-  lock_acquire(&(inode->access_lock));
+  lock_acquire(&fd_number_lock);
   fd = thread_current()->fd_counter++;
-  lock_release(&(inode->access_lock));
+  lock_release(&fd_number_lock);
 
   return fd;
 }
@@ -119,7 +119,7 @@ create_file_descriptor(char *file_name, struct thread *cur_thread)
     file_d = palloc_get_page(0);
     if (file_d != NULL)
     {
-      file_d->fd = allocate_fd_number(o_file->inode);
+      file_d->fd = allocate_fd_number();
       file_d->file_name = file_name;
       file_d->file = o_file;
       
