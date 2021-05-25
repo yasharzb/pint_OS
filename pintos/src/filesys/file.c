@@ -75,7 +75,11 @@ file_read (struct file *file, void *buffer, off_t size)
 off_t
 file_read_at (struct file *file, void *buffer, off_t size, off_t file_ofs)
 {
-  return inode_read_at (file->inode, buffer, size, file_ofs);
+  lock_acquire(&(file->inode->access_lock));
+  off_t res =  inode_read_at (file->inode, buffer, size, file_ofs);
+  lock_release(&(file->inode->access_lock));
+  return res;
+
 }
 
 /* Writes SIZE bytes from BUFFER into FILE,
@@ -107,9 +111,7 @@ file_write_at (struct file *file, const void *buffer, off_t size,
                off_t file_ofs)
 {
   lock_acquire(&(file->inode->access_lock));
-
   off_t bytes_written = inode_write_at (file->inode, buffer, size, file_ofs);
-
   lock_release(&(file->inode->access_lock));
   return bytes_written;
 }
