@@ -292,11 +292,45 @@ struct inode
 ================
 
 پشتیبانی از `mkdir`، `chdir`، `isdir` و `readdir`
---------------
+-------------
 
-تابع
+توابع زیر در پرونده‌ی file-descriptor.c اضافه شده اند:
 
+<div dir='ltr'>
 
+```c
+  bool fd_readdir(int fd, void* buffer);
+  bool fd_isdir(int fd);
+  bool ch_dir(const char* path);
+  bool mk_dir(const char* path);
+  bool read_dir(file_descriptor* fd, void* buffer);
 
+```
+</div>
+
+تابع fd_readdir پس از پیدا کردن دایرکتوری مناسب و اطمینان از صحت مسیر، عملیات readdir را انجام می‌دهد.
+
+برای کار کردن isdir ساختار file descriptor ها به صورت زیر تغییر کرده است:
+
+<div dir = 'ltr'>
+
+```c
+  typedef struct file_descriptor
+  {
+    struct file *file;
+    struct dir *dir;
+    char *file_name;
+    int fd;
+    struct list_elem fd_elem;
+  } file_descriptor;
+
+```
+
+</div>
+ یعنی یک دایرکتوری هم file descriptor محسوب می‌شود. پس از پیدا کردن استراکتی که عدد fd ‌آن برابر با ورودی است، چک می‌کنیم اگر قسمت dir آن null نبود، این file descriptor یک دایرکتوری است.
+
+برای chdir دایرکتوری جدید را به صورت یک inode دریافت می‌کنیم سپس دایرکتوری مربوط به این inode‌را باز می‌کنیم و سپس working_directory ترد فعلی را برابر این دایرکتوری قرار می‌دهیم و دایرکتوری قبلی را می‌بندیم.
+
+برای mkdir هم صرفا تابع sysfile_create() را صدا می‌زنیم.
 
 </div>
