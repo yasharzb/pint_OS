@@ -59,17 +59,26 @@ filesys_create_name (char *name, off_t initial_size, struct dir *dir, bool isDir
                   && inode_create (inode_sector, initial_size, isDir)
                   && dir_add (dir, name, inode_sector));
   
+  if (!success && inode_sector != 0) {
+    free_map_release (inode_sector, 1);
+    goto done;
+  }
   
-  if(inode_sector != 0 && isDir) {
+  if(isDir) {
     struct dir *new_dir = dir_open(inode_open(inode_sector));
     success &= dir_add(new_dir, ".", inode_sector);
     success &= dir_add(new_dir, "..", dir->inode->sector);
     dir_close(new_dir);
+
+    if(!success) {
+      // dir_remove(new_dir, ".");
+      // dir_remove(new_dir, "..");
+      dir_remove(dir, name);
+    }
   }
 
-  if (!success && inode_sector != 0)
-    free_map_release (inode_sector, 1);
-  
+
+done: 
   dir_close (dir);
   free(name);
 
