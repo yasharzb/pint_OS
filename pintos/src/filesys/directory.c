@@ -51,6 +51,7 @@ dir_reopen (struct dir *dir)
   return dir_open (inode_reopen (dir->inode));
 }
 
+
 /* Destroys DIR and frees associated resources. */
 void
 dir_close (struct dir *dir)
@@ -187,6 +188,28 @@ dir_remove (struct dir *dir, const char *name)
   if (inode == NULL)
     goto done;
 
+  /* Cant remove root! */
+  if(inode->sector == ROOT_DIR_SECTOR)
+      goto done;
+
+  if(inode->data.isDir) {
+    struct dir *to_be_deleted_dir = dir_open(inode);
+    
+    /* if dir is not empty we can't remove it */
+    if (!is_dir_empty(to_be_deleted_dir)) {
+        dir_close(to_be_deleted_dir);
+        goto done;
+    }
+
+    /* don't allow removing of open directories */
+    if(inode->open_cnt > 1) {
+      dir_close(to_be_deleted_dir);
+      goto done;
+    }
+
+    dir_close(to_be_deleted_dir);
+  }
+
   /* Erase directory entry. */
   e.in_use = false;
   if (inode_write_at (dir->inode, &e, sizeof e, ofs) != sizeof e)
@@ -212,6 +235,8 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
   while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e)
     {
       dir->pos += sizeof e;
+      if (strcmp(e.name,".") == 0 || strcmp(e.name,"..") == 0)
+        continue;
       if (e.in_use)
         {
           strlcpy (name, e.name, NAME_MAX + 1);
@@ -219,4 +244,21 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
         }
     }
   return false;
+}
+
+
+/* return true if dir contains anything other than "." and ".." */
+bool
+is_dir_empty (struct dir *dir)
+{
+  int pos = 0;
+
+  struct dir_entry e;
+  while (inode_read_at (dir->inode, &e, sizeof e, pos) == sizeof e)
+    {
+      pos += sizeof e;
+      if (e.in_use && strcmp(e.name,".") != 0 && strcmp(e.name,"..") != 0)
+        return false;
+    }
+  return true;
 }

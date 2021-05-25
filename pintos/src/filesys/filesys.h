@@ -20,14 +20,8 @@ bool filesys_create (const char *name, off_t initial_size, bool isDir);
 struct file *filesys_open (const char *path); // TODO
 bool filesys_remove (const char *path); // TODO
 
-struct inode *get_name_and_dir_from_path(const char *path, char **file_name, struct dir **file_dir, int situation);
+struct inode *get_name_and_dir_from_path(const char *path, char **file_name, struct dir **file_dir);
 struct dir* get_path_initial_directory(const char *path);
 int get_path_next_token(const char **ptr, char **token);
-
-bool ch_dir(const char* path);
-bool mk_dir(const char* path);
-bool read_dir(struct file_descriptor* fd, void* buffer);
-bool is_dir(struct file_descriptor* fd);
-
 
 #endif /* filesys/filesys.h */

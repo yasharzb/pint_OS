@@ -212,7 +212,6 @@ syscall_handler(struct intr_frame *f)
         }
 
         f->eax = ch_dir(buffer);
-
         break;
 
     /* bool mkdir(char *path)*/
@@ -238,9 +237,13 @@ syscall_handler(struct intr_frame *f)
 
     /* bool isdir(int fd)*/
     case SYS_ISDIR:
-        f->eax = is_dir((int)args[1]);
+        f->eax = fd_isdir((int)args[1]);
         break;
 
+    /* int inumber (int fd) */
+    case SYS_INUMBER:
+        f->eax = fd_get_inumber((int)args[1]);
+        break;
 
     default:
         break;
@@ -536,6 +539,11 @@ int get_syscall_args_count(int syscall)
 
     /* bool isdir(int fd)*/
     case SYS_ISDIR:
+        count = 1;
+        break;
+    
+    /* int inumber (int fd) */
+    case SYS_INUMBER:
         count = 1;
         break;
 

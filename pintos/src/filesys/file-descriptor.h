@@ -14,6 +14,7 @@
 typedef struct file_descriptor
 {
    struct file *file;
+   struct dir *dir;
    char *file_name;
    int fd;
    struct list_elem fd_elem;
@@ -36,7 +37,12 @@ int fd_write(int fd, void *buffer, unsigned size);
 int fd_read(int fd, void *buffer, unsigned size);
 bool close_fd(int fd, bool remove_from_fd_list);
 
+int fd_get_inumber(int fd);
 bool fd_readdir(int fd, void* buffer);
 bool fd_isdir(int fd);
+
+bool ch_dir(const char* path);
+bool mk_dir(const char* path);
+bool read_dir(file_descriptor* fd, void* buffer);
 
 #endif /* filesys/file-descriptor.h */
