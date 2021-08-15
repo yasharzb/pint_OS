@@ -15,7 +15,7 @@ struct bitmap;
 
 #define POINTER_BLOCK_POINTERS_COUNT (BLOCK_SECTOR_SIZE / 4)
 #define MAX_FILE_SIZE ((POINTER_BLOCK_POINTERS_COUNT) * (POINTER_BLOCK_POINTERS_COUNT) * (BLOCK_SECTOR_SIZE))
-
+#define READ_AHEAD_SIZE 3
 
 struct pointer_block_disk
   {
@@ -55,6 +55,8 @@ block_sector_t inode_get_inumber (const struct inode *);
 void inode_close (struct inode *);
 void inode_remove (struct inode *);
 off_t inode_read_at (struct inode *, void *, off_t size, off_t offset);
+off_t inode_read_at_ahead (struct inode *, void *, off_t size, off_t offset);
+void inode_read_ahead(void *aux);
 off_t inode_write_at (struct inode *, const void *, off_t size, off_t offset);
 void inode_deny_write (struct inode *);
 void inode_allow_write (struct inode *);

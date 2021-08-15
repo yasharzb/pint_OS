@@ -16,6 +16,7 @@
 #include "devices/shutdown.h"
 #include "threads/malloc.h"
 #include "lib/stdio.h"
+#include "devices/timer.h"
 
 #define MAX_DIR_CHAR 14
 
@@ -59,7 +60,10 @@ syscall_handler(struct intr_frame *f)
    */
 
     /* printf("System call number: %d\n", args[0]); */
-
+    unsigned read_size;
+    int read_bytes_cnt;
+    unsigned w_size;
+    int w_bytes_cnt;
     switch (args[0])
     {
     /* void halt (void) */
@@ -144,9 +148,9 @@ syscall_handler(struct intr_frame *f)
         break;
 
     /* int write (int fd, const void *buffer, unsigned size) */
-    case SYS_WRITE:;
+    case SYS_WRITE:
         // args[2] is a pointer so we need to validate it:
-        unsigned w_size = args[3];
+        w_size = args[3];
         buffer_page_count = (w_size + PGSIZE - 1) / PGSIZE;
         if (buffer_page_count == 0)
             buffer_page_count = 1;
@@ -154,7 +158,7 @@ syscall_handler(struct intr_frame *f)
         if (buffer == NULL)
             goto kill_process;
 
-        int w_bytes_cnt = -1;
+        w_bytes_cnt = -1;
         switch (args[1])
         {
         case STDIN_FILENO:
@@ -171,13 +175,13 @@ syscall_handler(struct intr_frame *f)
         break;
 
     /* int read (int fd, void *buffer, unsigned size) */
-    case SYS_READ:;
-        unsigned read_size = args[3];
+    case SYS_READ:
+        read_size = args[3];
 
         if (!validate_user_pointer((void *)args[2], read_size))
             goto kill_process;
 
-        int read_bytes_cnt = -1;
+        read_bytes_cnt = -1;
         switch (args[1])
         {
         case STDIN_FILENO:
@@ -186,7 +190,29 @@ syscall_handler(struct intr_frame *f)
         case STDOUT_FILENO:
             break;
         default:
-            read_bytes_cnt = fd_read(args[1], (void *)args[2], read_size);
+            read_bytes_cnt = fd_read(args[1], (void *)args[2], read_size, false);
+            break;
+        }
+        f->eax = read_bytes_cnt;
+        break;
+
+    /* int read_with_ahead (int fd, void *buffer, unsigned size) */
+    case SYS_READ_WITH_AHEAD:
+        read_size = args[3];
+
+        if (!validate_user_pointer((void *)args[2], read_size))
+            goto kill_process;
+
+        read_bytes_cnt = -1;
+        switch (args[1])
+        {
+        case STDIN_FILENO:
+            read_bytes_cnt = input_getc();
+            break;
+        case STDOUT_FILENO:
+            break;
+        default:
+            read_bytes_cnt = fd_read(args[1], (void *)args[2], read_size, true);
             break;
         }
         f->eax = read_bytes_cnt;
@@ -251,6 +277,10 @@ syscall_handler(struct intr_frame *f)
     /* int inumber (int fd) */
     case SYS_INUMBER:
         f->eax = fd_get_inumber((int)args[1]);
+        break;
+
+    case SYS_TICK:
+        f->eax = timer_ticks();
         break;
 
     default:
@@ -519,6 +549,11 @@ int get_syscall_args_count(int syscall)
         count = 3;
         break;
 
+    /* int read_with_ahead (int fd, void *buffer, unsigned size) */
+    case SYS_READ_WITH_AHEAD:
+        count = 3;
+        break;
+
     /* unsigned tell (int fd) */
     case SYS_TELL:
         count = 1;
@@ -538,7 +573,7 @@ int get_syscall_args_count(int syscall)
     case SYS_MKDIR:
         count = 1;
         break;
-    
+
     /* bool readdir(int fd, char *name)*/
     case SYS_READDIR:
         count = 2;
@@ -548,7 +583,7 @@ int get_syscall_args_count(int syscall)
     case SYS_ISDIR:
         count = 1;
         break;
-    
+
     /* int inumber (int fd) */
     case SYS_INUMBER:
         count = 1;

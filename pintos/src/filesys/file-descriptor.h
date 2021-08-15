@@ -35,7 +35,8 @@ void seek_file(int fd, unsigned position);
 unsigned tell_file(int fd);
 
 int fd_write(int fd, void *buffer, unsigned size);
-int fd_read(int fd, void *buffer, unsigned size);
+int fd_read(int fd, void *buffer, unsigned size, bool with_ahead);
+int fd_read_ahead(int fd, void *buffer, unsigned size);
 bool close_fd(int fd, bool remove_from_fd_list);
 
 int fd_get_inumber(int fd);

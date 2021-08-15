@@ -126,6 +126,12 @@ read (int fd, void *buffer, unsigned size)
 }
 
 int
+read_with_ahead (int fd, void *buffer, unsigned size)
+{
+  return syscall3 (SYS_READ_WITH_AHEAD, fd, buffer, size);
+}
+
+int
 write (int fd, const void *buffer, unsigned size)
 {
   return syscall3 (SYS_WRITE, fd, buffer, size);
@@ -203,6 +209,11 @@ blk_wr_cnt (void)
   return syscall0 (SYS_BLK_WR_CNT);
 }
 
+int64_t
+timer_ticks (void)
+{
+  return syscall0 (SYS_TICK);
+}
 void*
 sbrk (intptr_t increment)
 {

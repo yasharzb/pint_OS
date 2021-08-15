@@ -14,6 +14,7 @@ enum
     SYS_OPEN,                   /* Open a file. */
     SYS_FILESIZE,               /* Obtain a file's size. */
     SYS_READ,                   /* Read from a file. */
+    SYS_READ_WITH_AHEAD,        /* Read from a file with ahead. */
     SYS_WRITE,                  /* Write to a file. */
     SYS_SEEK,                   /* Change position in a file. */
     SYS_TELL,                   /* Report current position in a file. */
@@ -31,7 +32,9 @@ enum
     SYS_ISDIR,                  /* Tests if a fd represents a directory. */
     SYS_INUMBER,                /* Returns the inode number for a fd. */
     SYS_BLK_READ_CNT,           /* Returns number of invokation of block_read */
-    SYS_BLK_WR_CNT              /* Returns number of invokation of block_write */
+    SYS_BLK_WR_CNT,             /* Returns number of invokation of block_write */
+
+    SYS_TICK                    /* Returns number of timer ticks */
   };
 
 #endif /* lib/syscall-nr.h */

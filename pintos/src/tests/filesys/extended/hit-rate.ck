@@ -5,6 +5,8 @@ use tests::tests;
 check_expected ([<<'EOF']);
 (hit-rate) begin
 (hit-rate) Hitrate is improved
+(hit-rate) Hitrate is improved
+(hit-rate) Timing is improved
 (hit-rate) end
 hit-rate: exit(0)
 EOF

@@ -7,12 +7,8 @@ static struct list cached_blocks;
 static int cache_size;
 static struct list_elem *cache_pointer;
 
-static void write_back(cache *ca);
-static void apply_clock_algorithm(void);
 static bool index_cmp(const struct list_elem *a,
                       const struct list_elem *b, void *aux UNUSED);
-
-
 
 void init_cache(void)
 {
@@ -37,24 +33,31 @@ cache *get_cache(block_sector_t index)
 void set_cache(block_sector_t index, const uint8_t *buf)
 {
         cache *ca = malloc(sizeof(cache));
-        if(ca == NULL)
-			return;
+        if (ca == NULL)
+                return;
         uint8_t *data = malloc(sizeof(uint8_t) * BLOCK_SECTOR_SIZE);
-		if(data == NULL) {
-			free(ca);
-			return;
-		}
-        
+        if (data == NULL)
+        {
+                free(ca);
+                return;
+        }
+
         memcpy(data, buf, BLOCK_SECTOR_SIZE);
         ca->index = index;
         ca->data = data;
         ca->is_dirty = 0;
         ca->is_used = 1;
 
+        // if (cache_size == CACHE_BLOCK_SIZE)
+        //         apply_clock_algorithm();
+        // else
+        //         cache_size++;
+        // list_insert_ordered(&cached_blocks, &ca->elem, index_cmp, NULL);
         list_insert_ordered(&cached_blocks, &ca->elem, index_cmp, NULL);
         cache_size++;
         if (cache_size > CACHE_BLOCK_SIZE)
                 apply_clock_algorithm();
+
 }
 void update_cache(cache *ca, const uint8_t *buf, int offset, int size)
 {
@@ -67,6 +70,7 @@ void remove_cache(cache *ca)
         list_remove(&ca->elem);
         free(ca->data);
         free(ca);
+        cache_size--;
 }
 bool index_cmp(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
 {
@@ -86,13 +90,12 @@ void apply_clock_algorithm()
                 ca = list_entry(cache_pointer, cache, elem);
                 if (ca->is_dirty)
                 {
-                        write_back(ca);
+                        write_back(ca, true);
                 }
                 if (!ca->is_used)
                 {
                         cache_pointer = list_next(cache_pointer);
                         remove_cache(ca);
-                        cache_size--;
                         return;
                 }
                 ca->is_used = 0;
@@ -102,21 +105,21 @@ void apply_clock_algorithm()
         }
 }
 
-static void write_back(cache *ca)
+void write_back(cache *ca, bool mode)
 {
-        block_write(fs_device, ca->index, ca->data);
+        block_write(fs_device, ca->index, ca->data, mode);
         ca->is_dirty = 0;
 }
 
-
 void write_back_all_cache()
 {
-	struct list_elem *e;
-	for (e = list_begin(&cached_blocks); e != list_end(&cached_blocks); e = list_next(e)) {
-		cache *ca = list_entry(e, cache, elem);
-		if (ca->is_dirty)
-		{
-			write_back(ca);
-		}
-	}
+        struct list_elem *e;
+        for (e = list_begin(&cached_blocks); e != list_end(&cached_blocks); e = list_next(e))
+        {
+                cache *ca = list_entry(e, cache, elem);
+                if (ca->is_dirty)
+                {
+                        write_back(ca, false);
+                }
+        }
 }

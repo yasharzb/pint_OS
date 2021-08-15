@@ -138,7 +138,6 @@ filesys_open (const char *path)
 bool
 filesys_remove_name (char *name, struct dir* dir)
 {
-
   bool success = dir != NULL && dir_remove (dir, name);
   dir_close (dir);
   free(name);

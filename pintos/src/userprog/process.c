@@ -318,7 +318,7 @@ bool load(const char *cmdline, void (**eip)(void), void **esp)
     
     
     /* Read and verify executable header. */
-    if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr 
+    if (file_read(file, &ehdr, sizeof ehdr, false) != sizeof ehdr 
     || memcmp(ehdr.e_ident, "\177ELF\1\1\1", 7) 
     || ehdr.e_type != 2 
     || ehdr.e_machine != 3 
@@ -340,7 +340,7 @@ bool load(const char *cmdline, void (**eip)(void), void **esp)
             goto done;
         file_seek(file, file_ofs);
 
-        if (file_read(file, &phdr, sizeof phdr) != sizeof phdr)
+        if (file_read(file, &phdr, sizeof phdr, false) != sizeof phdr)
             goto done;
         file_ofs += sizeof phdr;
         switch (phdr.p_type)
@@ -492,7 +492,7 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
             return false;
 
         /* Load this page. */
-        if (file_read(file, kpage, page_read_bytes) != (int)page_read_bytes)
+        if (file_read(file, kpage, page_read_bytes, false) != (int)page_read_bytes)
         {
             palloc_free_page(kpage);
             return false;
