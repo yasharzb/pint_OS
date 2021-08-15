@@ -12,8 +12,7 @@ static struct lock fd_number_lock;
 
 static int allocate_fd_number(void);
 
-void
-file_descriptor_init()
+void file_descriptor_init()
 {
   lock_init(&fd_number_lock);
 }
@@ -30,8 +29,7 @@ allocate_fd_number()
   return fd;
 }
 
-int
-is_valid_fd(int fd)
+int is_valid_fd(int fd)
 {
   if (fd > MAX_FD)
     return -1;
@@ -55,22 +53,19 @@ get_file_from_current_thread(int fd)
   return NULL;
 }
 
-bool
-remove_file(const char *file_name)
+bool remove_file(const char *file_name)
 {
   bool success = filesys_remove(file_name);
   return success;
 }
 
-bool
-create_file(const char *name, off_t initial_size)
+bool create_file(const char *name, off_t initial_size)
 {
   bool success = filesys_create(name, initial_size, 0);
   return success;
 }
 
-bool
-close_fd(int fd, bool remove_from_fd_list)
+bool close_fd(int fd, bool remove_from_fd_list)
 {
 
   bool success = false;
@@ -81,7 +76,7 @@ close_fd(int fd, bool remove_from_fd_list)
     if (f_file != NULL)
     {
       file_close(f_file->file);
-      if(f_file->dir)
+      if (f_file->dir)
         dir_close(f_file->dir);
 
       if (remove_from_fd_list)
@@ -96,7 +91,7 @@ close_fd(int fd, bool remove_from_fd_list)
   return success;
 }
 
-file_descriptor*
+file_descriptor *
 create_file_descriptor(char *file_name, struct thread *cur_thread)
 {
 
@@ -111,9 +106,10 @@ create_file_descriptor(char *file_name, struct thread *cur_thread)
       file_d->fd = allocate_fd_number();
       file_d->file_name = file_name;
       file_d->file = o_file;
-      
+
       file_d->dir = NULL;
-      if(o_file->inode->data.isDir) {
+      if (o_file->inode->data.isDir)
+      {
         file_d->dir = dir_open(inode_reopen(o_file->inode));
       }
 
@@ -124,8 +120,7 @@ create_file_descriptor(char *file_name, struct thread *cur_thread)
   return file_d;
 }
 
-int
-fd_write(int fd, void *buffer, unsigned size)
+int fd_write(int fd, void *buffer, unsigned size)
 {
   int w_bytes_cnt = -1;
 
@@ -140,8 +135,7 @@ fd_write(int fd, void *buffer, unsigned size)
   return w_bytes_cnt;
 }
 
-int
-fd_read(int fd, void *buffer, unsigned size)
+int fd_read(int fd, void *buffer, unsigned size, bool with_ahead)
 {
   int read_bytes_cnt = -1;
 
@@ -150,16 +144,13 @@ fd_read(int fd, void *buffer, unsigned size)
   {
     file_descriptor *f_file = get_file_from_current_thread(fd);
     if (f_file != NULL)
-
-      read_bytes_cnt = file_read(f_file->file, buffer, size);
+      read_bytes_cnt = file_read(f_file->file, buffer, size, with_ahead);
   }
 
-  
   return read_bytes_cnt;
 }
 
-int
-size_file(int fd)
+int size_file(int fd)
 {
   int size = -1;
   struct file_descriptor *fd_tmp = get_file_from_current_thread(fd);
@@ -169,8 +160,7 @@ size_file(int fd)
   return size;
 }
 
-void
-seek_file(int fd, unsigned position)
+void seek_file(int fd, unsigned position)
 {
   struct file_descriptor *fd_tmp = get_file_from_current_thread(fd);
   if (fd_tmp)
@@ -190,8 +180,7 @@ tell_file(int fd)
   return tell;
 }
 
-bool
-fd_readdir(int fd, void *buffer)
+bool fd_readdir(int fd, void *buffer)
 {
   bool situation = 0;
 
@@ -208,24 +197,21 @@ fd_readdir(int fd, void *buffer)
   return situation;
 }
 
-bool
-fd_isdir(int fd)
+bool fd_isdir(int fd)
 {
   fd = is_valid_fd(fd);
   if (fd == -1)
     return 0;
- 
+
   file_descriptor *f = get_file_from_current_thread(fd);
   return f != NULL && f->dir != NULL;
 }
 
-
-bool
-ch_dir(const char* path)
+bool ch_dir(const char *path)
 {
   struct inode *dir_inode = get_name_and_dir_from_path(path, NULL, NULL);
 
-  if(!dir_inode || !dir_inode->data.isDir) 
+  if (!dir_inode || !dir_inode->data.isDir)
     return 0;
 
   struct dir *old_dir = get_working_directory();
@@ -235,16 +221,15 @@ ch_dir(const char* path)
   return 1;
 }
 
-
-bool
-mk_dir(const char* path)
+bool mk_dir(const char *path)
 {
   return filesys_create(path, 0, 1);
 }
 
-bool
-read_dir(struct file_descriptor* fd, void* buffer) {
-  if(fd->dir != NULL){
+bool read_dir(struct file_descriptor *fd, void *buffer)
+{
+  if (fd->dir != NULL)
+  {
     struct dir *fd_dir = fd->dir;
     bool out = dir_readdir(fd_dir, buffer);
     return out;
@@ -253,12 +238,12 @@ read_dir(struct file_descriptor* fd, void* buffer) {
   return 0;
 }
 
-int
-fd_get_inumber(int fd) {
+int fd_get_inumber(int fd)
+{
   fd = is_valid_fd(fd);
   if (fd == -1)
     return -1;
-    
+
   file_descriptor *f = get_file_from_current_thread(fd);
   return f->file->inode->sector;
 }

@@ -101,11 +101,12 @@ check_sector (struct block *block, block_sector_t sector)
    Internally synchronizes accesses to block devices, so external
    per-block device locking is unneeded. */
 void
-block_read (struct block *block, block_sector_t sector, void *buffer)
+block_read (struct block *block, block_sector_t sector, void *buffer, bool is_miss)
 {
   check_sector (block, sector);
   block->ops->read (block->aux, sector, buffer);
-  block->read_cnt++;
+  if (is_miss)
+    block->read_cnt++;
 }
 
 /* Write sector SECTOR to BLOCK from BUFFER, which must contain
@@ -114,12 +115,13 @@ block_read (struct block *block, block_sector_t sector, void *buffer)
    Internally synchronizes accesses to block devices, so external
    per-block device locking is unneeded. */
 void
-block_write (struct block *block, block_sector_t sector, const void *buffer)
+block_write (struct block *block, block_sector_t sector, const void *buffer, bool is_miss)
 {
   check_sector (block, sector);
   ASSERT (block->type != BLOCK_FOREIGN);
   block->ops->write (block->aux, sector, buffer);
-  block->write_cnt++;
+  if (is_miss)
+    block->write_cnt++;
 }
 
 /* Returns the number of sectors in BLOCK. */

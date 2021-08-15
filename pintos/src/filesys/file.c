@@ -58,10 +58,14 @@ file_get_inode (struct file *file)
    which may be less than SIZE if end of file is reached.
    Advances FILE's position by the number of bytes read. */
 off_t
-file_read (struct file *file, void *buffer, off_t size)
+file_read (struct file *file, void *buffer, off_t size, bool with_ahead)
 {
   lock_acquire(&(file->inode->access_lock));
-  off_t bytes_read = inode_read_at (file->inode, buffer, size, file->pos);
+  off_t bytes_read;
+  if (with_ahead)
+    bytes_read =  inode_read_at_ahead (file->inode, buffer, size, file->pos);
+  else
+    bytes_read =  inode_read_at (file->inode, buffer, size, file->pos);
   file->pos += bytes_read;
   lock_release(&(file->inode->access_lock));
   return bytes_read;
@@ -73,10 +77,14 @@ file_read (struct file *file, void *buffer, off_t size)
    which may be less than SIZE if end of file is reached.
    The file's current position is unaffected. */
 off_t
-file_read_at (struct file *file, void *buffer, off_t size, off_t file_ofs)
+file_read_at (struct file *file, void *buffer, off_t size, off_t file_ofs, bool with_ahead)
 {
   lock_acquire(&(file->inode->access_lock));
-  off_t res =  inode_read_at (file->inode, buffer, size, file_ofs);
+  off_t res;
+  if (with_ahead)
+    res =  inode_read_at_ahead (file->inode, buffer, size, file_ofs);
+  else
+    res =  inode_read_at (file->inode, buffer, size, file_ofs);
   lock_release(&(file->inode->access_lock));
   return res;
 

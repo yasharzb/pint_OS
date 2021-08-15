@@ -4,7 +4,7 @@ raw_tests = dir-empty-name dir-mk-tree dir-mkdir dir-open		\
 dir-over-file dir-rm-cwd dir-rm-parent dir-rm-root dir-rm-tree		\
 dir-rmdir dir-under-file dir-vine grow-create grow-dir-lg		\
 grow-file-size grow-root-sm grow-seq-lg grow-seq-sm	\
-grow-sparse grow-tell grow-two-files syn-rw hit-rate full-bw
+grow-sparse grow-tell grow-two-files hit-rate full-bw
 
 tests/filesys/extended_TESTS = $(patsubst %,tests/filesys/extended/%,$(raw_tests))
 tests/filesys/extended_EXTRA_GRADES = $(patsubst %,tests/filesys/extended/%-persistence,$(raw_tests))
@@ -27,7 +27,8 @@ tests/filesys/extended/dir-rm-tree_SRC += tests/filesys/extended/mk-tree.c
 
 
 tests/filesys/extended/syn-rw_PUTFILES += tests/filesys/extended/child-syn-rw
-tests/filesys/extended/hit-rate_PUTFILES += tests/sample_30k.txt
+tests/filesys/extended/hit-rate_PUTFILES += tests/smp_30k.txt
+tests/filesys/extended/hit-rate_PUTFILES += tests/smp2_30k.txt
 tests/filesys/extended/full-bw_PUTFILES += tests/sample_1hk.txt
 
 tests/filesys/extended/dir-vine.output: TIMEOUT = 150

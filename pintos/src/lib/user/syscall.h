@@ -30,6 +30,7 @@ bool remove (const char *file);
 int open (const char *file);
 int filesize (int fd);
 int read (int fd, void *buffer, unsigned length);
+int read_with_ahead (int fd, void *buffer, unsigned size);
 int write (int fd, const void *buffer, unsigned length);
 void seek (int fd, unsigned position);
 unsigned tell (int fd);
@@ -52,5 +53,7 @@ void* sbrk (intptr_t increment);
 
 int blk_read_cnt (void);
 int blk_wr_cnt (void);
+
+int64_t timer_ticks (void);
 
 #endif /* lib/user/syscall.h */
